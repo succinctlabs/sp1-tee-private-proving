@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+import "types.proto";
+
+package private;
+
+service PrivateProver {
+
+  /*
+   * Proofs
+   *
+   * These methods are for managing proof requests.
+   */
+
+  // Creates a proof request.
+  rpc RequestProof(stream types.Chunk) returns (types.RequestProofResponse) {}
+  // Get the status of a proof request.
+  rpc GetProofRequestStatus(types.GetProofRequestStatusRequest)
+      returns (stream types.Chunk) {}
+
+  /*
+   * Programs
+   *
+   * These methods are for managing programs.
+   */
+
+  // Get metadata about a program.
+  rpc ProgramExists(types.ProgramExistsRequest) returns (types.ProgramExistsResponse) {}
+  // Create a new program. Must be called before requesting proofs.
+  rpc CreateProgram(stream types.Chunk) returns (types.CreateProgramResponse) {}
+}

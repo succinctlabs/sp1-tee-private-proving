@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package types;
+
+message Chunk {
+    bytes data = 1;
+    uint32 version = 2;
+    bool is_last = 3;
+}
+
+/**************
+ *** Proofs ***
+ **************/
+
+message RequestProofResponse {
+  // The transaction hash.
+  bytes tx_hash = 1;
+  // The body of the response.
+  RequestProofResponseBody body = 2;
+}
+
+message RequestProofResponseBody {
+  // The identifier for the request.
+  bytes request_id = 1;
+}
+
+message GetProofRequestStatusRequest {
+  // The identifier for the request.
+  bytes request_id = 1;
+}
+
+/****************
+ *** Programs ***
+ ***************/
+
+message ProgramExistsRequest {
+  // The verification key hash of the program.
+  bytes vk_hash = 1;
+}
+
+message ProgramExistsResponse {
+  // The program existance.
+  bool exists = 1;
+}
+
+message CreateProgramRequest {}
+
+message CreateProgramResponse {}

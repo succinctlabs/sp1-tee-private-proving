@@ -1,0 +1,20 @@
+[package]
+name = "sp1-tee-private-types"
+description = "Types for provate proving."
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+alloy-primitives.workspace = true
+anyhow = { workspace = true }
+bincode = { workspace = true }
+serde = { workspace = true }
+prost = { workspace = true }
+prost-types = { workspace = true }
+tonic = { workspace = true }
+
+sp1-sdk.workspace = true
+
+[build-dependencies]
+prost-build = { workspace = true }
+tonic-build = { workspace = true }

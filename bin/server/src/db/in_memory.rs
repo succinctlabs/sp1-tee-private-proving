@@ -5,7 +5,7 @@ use async_stream::stream;
 use futures::Stream;
 use lru::LruCache;
 use sp1_sdk::{SP1ProofWithPublicValues, SP1ProvingKey};
-use sp1_tee_private_types::{AssignedRequest, FulfilledRequest, PendingRequest, Request};
+use sp1_tee_private_types::{PendingRequest, Request, UnfulfillableRequestReason};
 use tokio::sync::{Mutex, Notify};
 use tonic::async_trait;
 
@@ -66,10 +66,6 @@ impl Db for InMemoryDb {
 
                 match item {
                     Some(value) => {
-                        let mut requests = self.requests.lock().await;
-                        requests.push(value.id.clone(), Arc::new(Request::Assigned(AssignedRequest { deadline: value.deadline })));
-                        drop(requests);
-
                         yield value
                     },
                     None => {
@@ -81,28 +77,38 @@ impl Db for InMemoryDb {
         }
     }
 
-    async fn insert_proof(
-        &self,
-        request_id: Vec<u8>,
-        proof: SP1ProofWithPublicValues,
-        deadline: u64,
-    ) {
+    async fn set_request_as_assigned(&self, request_id: Vec<u8>) {
+        let mut requests = self.requests.lock().await;
+
+        requests.push(request_id, Arc::new(Request::Assigned));
+    }
+
+    async fn set_request_as_fulfilled(&self, request_id: Vec<u8>, proof: SP1ProofWithPublicValues) {
         let mut requests = self.requests.lock().await;
 
         requests.push(
             request_id,
-            Arc::new(Request::Fulfilled(FulfilledRequest {
-                deadline,
+            Arc::new(Request::Fulfilled {
                 proof: Arc::new(proof),
-            })),
+            }),
         );
+    }
+
+    async fn set_request_as_unfulfillable(
+        &self,
+        request_id: Vec<u8>,
+        reason: UnfulfillableRequestReason,
+    ) {
+        let mut requests = self.requests.lock().await;
+
+        requests.push(request_id, Arc::new(Request::Unfulfillable { reason }));
     }
 
     async fn get_proof(&self, request_id: &[u8]) -> Option<Arc<SP1ProofWithPublicValues>> {
         let mut requests = self.requests.lock().await;
 
         requests.get(request_id).and_then(|r| match r.as_ref() {
-            Request::Fulfilled(fulfilled_request) => Some(fulfilled_request.proof.clone()),
+            Request::Fulfilled { proof } => Some(proof.clone()),
             _ => None,
         })
     }

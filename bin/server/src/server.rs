@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     pin::{Pin, pin},
     sync::Arc,
 };
@@ -58,7 +57,7 @@ impl<DB: Db> PrivateProver for DefaultPrivateProverServer<DB> {
         let request = bincode::deserialize::<SignedMessage>(&encoded_request)
             .map_err(|_| Status::invalid_argument("invalid request"))?;
         let body = bincode::deserialize::<CreateProgramRequestBody>(&request.message)
-            .map_err(|_| Status::invalid_argument("invalid request"))?;
+            .map_err(|_| Status::invalid_argument("invalid body"))?;
 
         self.db
             .insert_program(body.vk_hash, body.pk.into_owned())
@@ -128,14 +127,13 @@ impl<DB: Db> PrivateProver for DefaultPrivateProverServer<DB> {
         let proof = self.db.get_proof(&request_id).await;
 
         let fulfillment_status = match request.as_ref() {
-            ProofRequest::Assigned(_) => FulfillmentStatus::Assigned,
-            ProofRequest::Fulfilled(_) => FulfillmentStatus::Fulfilled,
-            ProofRequest::Unfulfillable(_) => FulfillmentStatus::Unfulfillable,
+            ProofRequest::Assigned => FulfillmentStatus::Assigned,
+            ProofRequest::Fulfilled { .. } => FulfillmentStatus::Fulfilled,
+            ProofRequest::Unfulfillable { .. } => FulfillmentStatus::Unfulfillable,
         };
 
         let response = GetProofRequestStatusResponse {
             fulfillment_status,
-            deadline: request.deadline(),
             proof,
         };
 
@@ -154,6 +152,8 @@ fn spawn_dispatcher<DB: Db>(db: Arc<DB>) {
         let mut pending_requests = pin!(db.get_requests_to_process_stream());
 
         while let Some(request) = pending_requests.next().await {
+            db.set_request_as_assigned(request.id.clone()).await;
+
             let pk = db.get_program(request.vk_hash).await;
 
             if let Some(pk) = pk {
@@ -162,10 +162,11 @@ fn spawn_dispatcher<DB: Db>(db: Arc<DB>) {
                 match fulfiller.process() {
                     Ok(proof) => {
                         tracing::info!("Proved {}", B256::from_slice(&request.id));
-                        db.insert_proof(request.id, proof, request.deadline).await;
+                        db.set_request_as_fulfilled(request.id, proof).await;
                     }
-                    Err(err) => {
-                        tracing::error!("Failed to prove: {err}");
+                    Err(reason) => {
+                        tracing::error!("Failed to prove {}: {reason}", B256::from_slice(&request.id));
+                        db.set_request_as_unfulfillable(request.id, reason).await;
                     }
                 }
             }

@@ -1,4 +1,2 @@
 mod request;
-pub use request::{
-    AssignedRequest, FulfilledRequest, PendingRequest, Request, UnfulfillableRequest,
-};
+pub use request::{PendingRequest, Request, UnfulfillableRequestReason};

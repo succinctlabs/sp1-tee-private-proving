@@ -3,7 +3,7 @@ use std::sync::Arc;
 use alloy_primitives::B256;
 use futures::Stream;
 use sp1_sdk::{SP1ProofWithPublicValues, SP1ProvingKey};
-use sp1_tee_private_types::{PendingRequest, Request};
+use sp1_tee_private_types::{PendingRequest, Request, UnfulfillableRequestReason};
 use tonic::async_trait;
 
 mod in_memory;
@@ -21,11 +21,14 @@ pub trait Db: Send + Sync + 'static {
 
     fn get_requests_to_process_stream(&self) -> impl Stream<Item = PendingRequest> + Send + Sync;
 
-    async fn insert_proof(
+    async fn set_request_as_assigned(&self, request_id: Vec<u8>);
+
+    async fn set_request_as_fulfilled(&self, request_id: Vec<u8>, proof: SP1ProofWithPublicValues);
+
+    async fn set_request_as_unfulfillable(
         &self,
         request_id: Vec<u8>,
-        proof: SP1ProofWithPublicValues,
-        deadline: u64,
+        reason: UnfulfillableRequestReason,
     );
 
     async fn get_proof(&self, request_id: &[u8]) -> Option<Arc<SP1ProofWithPublicValues>>;

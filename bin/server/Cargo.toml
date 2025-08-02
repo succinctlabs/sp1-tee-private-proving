@@ -5,10 +5,11 @@ edition.workspace = true
 
 
 [dependencies]
+alloy-primitives.workspace = true
 anyhow.workspace = true
 bincode.workspace = true
-alloy-primitives.workspace = true
 clap.workspace = true
+crossbeam.workspace = true
 dotenv.workspace = true
 futures.workspace = true
 lru.workspace = true

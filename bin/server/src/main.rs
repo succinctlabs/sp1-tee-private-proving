@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use clap::Parser;
 use sp1_sdk::private::proto::private_prover_server::PrivateProverServer;
 use tonic::transport::Server;
@@ -18,12 +20,15 @@ async fn main() {
     let db = InMemoryDb::new();
     let args = Args::parse();
 
-    info!("Starting server...");
+    info!("Starting server on port {}...", args.port);
+
     Server::builder()
+        .timeout(Duration::from_secs(5 * 60))
         .add_service(PrivateProverServer::new(DefaultPrivateProverServer::new(
             db,
+            args.worker_count,
         )))
-        .serve(format!("[::1]:{}", args.port).parse().unwrap())
+        .serve(format!("0.0.0.0:{}", args.port).parse().unwrap())
         .await
         .unwrap();
 }

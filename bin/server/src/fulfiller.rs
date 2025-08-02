@@ -16,8 +16,12 @@ pub struct Fulfiller<P: Prover<CpuProverComponents>> {
 }
 
 impl Fulfiller<CudaProver> {
-    pub fn new(pk: Arc<SP1ProvingKey>, request: PendingRequest) -> Self {
-        let prover = ProverClient::builder().cuda().server("endpoint").build();
+    pub fn new(pk: Arc<SP1ProvingKey>, request: PendingRequest, device_id: usize) -> Self {
+        let port = 3000 + device_id;
+        let prover = ProverClient::builder()
+            .cuda()
+            .server(&format!("http://moongate:{port}/twirp/)"))
+            .build();
         Self {
             pk,
             request,

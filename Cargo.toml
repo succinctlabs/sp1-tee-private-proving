@@ -14,6 +14,7 @@ sp1-tee-private-types = { path = "./crates/types" }
 # Shared dependencies
 anyhow = "1.0.98"
 bincode = "1.3.3"
+crossbeam = "0.8.4"
 dotenv = "0.15.0"
 futures = "0.3"
 lru = "0.16.0"

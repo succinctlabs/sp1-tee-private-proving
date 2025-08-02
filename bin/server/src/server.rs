@@ -33,10 +33,10 @@ pub struct DefaultPrivateProverServer<DB: Db> {
 }
 
 impl<DB: Db> DefaultPrivateProverServer<DB> {
-    pub fn new(db: DB) -> Self {
+    pub fn new(db: DB, worker_count: usize) -> Self {
         let db = Arc::new(db);
 
-        spawn_dispatcher(db.clone());
+        spawn_workers(db.clone(), worker_count);
 
         Self { db }
     }
@@ -147,29 +147,44 @@ impl<DB: Db> PrivateProver for DefaultPrivateProverServer<DB> {
     }
 }
 
-fn spawn_dispatcher<DB: Db>(db: Arc<DB>) {
+fn spawn_workers<DB: Db>(db: Arc<DB>, worker_count: usize) {
     tokio::spawn(async move {
         let mut pending_requests = pin!(db.get_requests_to_process_stream());
+        let (tx, rx) = crossbeam::channel::unbounded::<PendingRequest>();
 
-        while let Some(request) = pending_requests.next().await {
-            db.set_request_as_assigned(request.id.clone()).await;
+        for gpu_id in 0..worker_count {
+            let db = db.clone();
+            let rx = rx.clone();
 
-            let pk = db.get_program(request.vk_hash).await;
+            tokio::spawn(async move {
+                while let Ok(request) = rx.recv() {
+                    db.set_request_as_assigned(request.id.clone()).await;
 
-            if let Some(pk) = pk {
-                let fulfiller = Fulfiller::mock(pk, request.clone());
+                    let pk = db.get_program(request.vk_hash).await;
 
-                match fulfiller.process() {
-                    Ok(proof) => {
-                        tracing::info!("Proved {}", B256::from_slice(&request.id));
-                        db.set_request_as_fulfilled(request.id, proof).await;
-                    }
-                    Err(reason) => {
-                        tracing::error!("Failed to prove {}: {reason}", B256::from_slice(&request.id));
-                        db.set_request_as_unfulfillable(request.id, reason).await;
+                    if let Some(pk) = pk {
+                        let fulfiller = Fulfiller::new(pk, request.clone(), gpu_id);
+
+                        match fulfiller.process() {
+                            Ok(proof) => {
+                                tracing::info!("Proved {}", B256::from_slice(&request.id));
+                                db.set_request_as_fulfilled(request.id, proof).await;
+                            }
+                            Err(reason) => {
+                                tracing::error!(
+                                    "Failed to prove {}: {reason}",
+                                    B256::from_slice(&request.id)
+                                );
+                                db.set_request_as_unfulfillable(request.id, reason).await;
+                            }
+                        }
                     }
                 }
-            }
+            });
+        }
+
+        while let Some(request) = pending_requests.next().await {
+            tx.send(request).unwrap();
         }
     });
 }

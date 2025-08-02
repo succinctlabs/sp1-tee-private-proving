@@ -6,4 +6,7 @@ pub struct Args {
     /// The port to listen on.
     #[clap(short, long, default_value = "8080")]
     pub port: u16,
+
+    #[clap(long, env, default_value = "1")]
+    pub worker_count: usize,
 }

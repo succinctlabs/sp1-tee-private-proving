@@ -799,10 +799,13 @@ checksum = "021e862c184ae977658b36c4500f7feac3221ca5da43e3f25bd04ab6c79a29b5"
 dependencies = [
  "axum-core 0.5.2",
  "bytes",
+ "form_urlencoded",
  "futures-util",
  "http",
  "http-body",
  "http-body-util",
+ "hyper",
+ "hyper-util",
  "itoa",
  "matchit 0.8.4",
  "memchr",
@@ -811,10 +814,15 @@ dependencies = [
  "pin-project-lite",
  "rustversion",
  "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "serde_urlencoded",
  "sync_wrapper",
+ "tokio",
  "tower 0.5.2",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -855,6 +863,7 @@ dependencies = [
  "sync_wrapper",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -1373,6 +1382,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19d374276b40fb8bbdee95aef7c7fa6b5316ec764510eb64b8dd0e2ed0d7e7f5"
 
 [[package]]
+name = "crossbeam"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1137cd7e7fc0fb5d3c5a8678be38ec56e819125d8d7907411fe24ccb943faca8"
+dependencies = [
+ "crossbeam-channel",
+ "crossbeam-deque",
+ "crossbeam-epoch",
+ "crossbeam-queue",
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-channel"
 version = "0.5.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1396,6 +1418,15 @@ name = "crossbeam-epoch"
 version = "0.9.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b82ac4a3c2ca9c3460964f020e1402edd5753411d7737aa39c3714ad1b5420e"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-queue"
+version = "0.3.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f58bbc28f91df819d0aa2a2c00cd19754769c2fad90579b3592b1c9ba7a3115"
 dependencies = [
  "crossbeam-utils",
 ]
@@ -4928,6 +4959,7 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -4940,6 +4972,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-executor"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -4977,6 +5010,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -5032,6 +5066,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -5047,6 +5082,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "cfg-if",
  "dashu",
@@ -5067,6 +5103,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5075,6 +5112,7 @@ dependencies = [
 [[package]]
 name = "sp1-primitives"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "bincode",
  "blake3",
@@ -5093,6 +5131,7 @@ dependencies = [
 [[package]]
 name = "sp1-prover"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5136,6 +5175,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -5169,6 +5209,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -5189,6 +5230,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -5230,6 +5272,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -5238,6 +5281,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5262,6 +5306,7 @@ dependencies = [
 [[package]]
 name = "sp1-sdk"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "alloy-primitives",
  "anyhow",
@@ -5305,6 +5350,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "5.0.8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=aurelien%2Fgro2-723-add-new-apis-for-private-proving-to-sp1#9d9f2694c81b3aa83a6a66f50a540a335780639f"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -5342,8 +5388,10 @@ dependencies = [
  "alloy-primitives",
  "anyhow",
  "async-stream",
+ "axum 0.8.4",
  "bincode",
  "clap",
+ "crossbeam",
  "dotenv",
  "dstack-sdk",
  "futures",

@@ -28,3 +28,6 @@ tonic.workspace = true
 
 async-stream = "0.3.6"
 dstack-sdk = { git = "https://github.com/Dstack-TEE/dstack.git" }
+
+[features]
+mock = []

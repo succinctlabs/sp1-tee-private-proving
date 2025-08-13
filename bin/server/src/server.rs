@@ -173,7 +173,11 @@ fn spawn_workers<DB: Db>(db: Arc<DB>, worker_count: usize) {
                     let pk = db.get_program(request.vk_hash).await;
 
                     if let Some(pk) = pk {
+                        #[cfg(not(feature = "mock"))]
                         let fulfiller = Fulfiller::new(pk, request.clone(), gpu_id);
+
+                        #[cfg(feature = "mock")]
+                        let fulfiller = Fulfiller::mock(pk, request.clone());
 
                         match fulfiller.process() {
                             Ok(proof) => {

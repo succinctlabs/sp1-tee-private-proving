@@ -3,8 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use sp1_prover::components::CpuProverComponents;
 use sp1_sdk::{
-    CpuProver, CudaProver, Prover, ProverClient, SP1Context, SP1ProofWithPublicValues,
-    SP1ProvingKey,
+    CudaProver, Prover, ProverClient, SP1Context, SP1ProofWithPublicValues, SP1ProvingKey,
 };
 use sp1_tee_private_types::{PendingRequest, UnfulfillableRequestReason};
 
@@ -29,7 +28,8 @@ impl Fulfiller<CudaProver> {
     }
 }
 
-impl Fulfiller<CpuProver> {
+#[cfg(feature = "mock")]
+impl Fulfiller<sp1_sdk::CpuProver> {
     pub fn mock(pk: Arc<SP1ProvingKey>, request: PendingRequest) -> Self {
         let prover = ProverClient::builder().mock().build();
         Self {

@@ -13,10 +13,10 @@ service PrivateProver {
    */
 
   // Creates a proof request.
-  rpc RequestProof(stream types.Chunk) returns (types.RequestProofResponse) {}
+  rpc RequestProof(types.RequestProofRequest) returns (types.RequestProofResponse) {}
   // Get the status of a proof request.
   rpc GetProofRequestStatus(types.GetProofRequestStatusRequest)
-      returns (stream types.Chunk) {}
+      returns (types.GetProofRequestStatusResponse) {}
 
   /*
    * Programs
@@ -27,5 +27,5 @@ service PrivateProver {
   // Get metadata about a program.
   rpc ProgramExists(types.ProgramExistsRequest) returns (types.ProgramExistsResponse) {}
   // Create a new program. Must be called before requesting proofs.
-  rpc CreateProgram(stream types.Chunk) returns (types.CreateProgramResponse) {}
+  rpc CreateProgram(types.CreateProgramRequest) returns (types.CreateProgramResponse) {}
 }

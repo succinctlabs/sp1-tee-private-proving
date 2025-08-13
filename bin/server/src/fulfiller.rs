@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use alloy_primitives::B256;
 use anyhow::Result;
 use sp1_prover::components::CpuProverComponents;
 use sp1_sdk::{
@@ -20,7 +19,7 @@ impl Fulfiller<CudaProver> {
         let port = 3000 + device_id;
         let prover = ProverClient::builder()
             .cuda()
-            .server(&format!("http://moongate:{port}/twirp/)"))
+            .server(&format!("http://moongate:{port}/twirp/"))
             .build();
         Self {
             pk,
@@ -43,7 +42,7 @@ impl Fulfiller<CpuProver> {
 
 impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
     pub fn process(self) -> Result<SP1ProofWithPublicValues, UnfulfillableRequestReason> {
-        tracing::debug!("Executing {}", B256::from_slice(&self.request.id));
+        tracing::debug!("Executing {}", self.request.id);
         let prover = self.prover.inner();
         let context = SP1Context::builder()
             .max_cycles(self.request.cycle_limit)
@@ -58,7 +57,7 @@ impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
             return Err(UnfulfillableRequestReason::GasLimitExceeded);
         }
 
-        tracing::debug!("Start proving {}", B256::from_slice(&self.request.id));
+        tracing::debug!("Start proving {}", self.request.id);
         self.prover
             .prove(&self.pk, &self.request.stdin, self.request.mode)
             .map_err(|err| UnfulfillableRequestReason::ProvingError(err.to_string()))

@@ -9,17 +9,20 @@ async fn test_prove() {
     let client = ProverClient::builder()
         .private()
         .private_key("0xbcdf20249abf0ed6d944c0288fad489e33f66b3960d9e6229c1cd214ed3bbe31")
-        .rpc_url("https://app.leruaa-private.work:18364/")
+        .rpc_url("https://leruaa-private.work:18364/")
+        //.rpc_url("http://localhost:8888/")
         .build();
 
-    let (pk, _) = client.setup(FIBONACCI_ELF);
+    let (pk, vk) = client.setup(FIBONACCI_ELF);
     let mut stdin = SP1Stdin::new();
 
     stdin.write(&10);
 
-    client
+    let proof = client
         .prove(&pk, &stdin)
         .skip_simulation(true)
         .run()
         .unwrap();
+
+    client.verify(&proof, &vk).unwrap();
 }

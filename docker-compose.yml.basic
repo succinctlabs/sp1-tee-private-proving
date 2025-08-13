@@ -2,7 +2,7 @@ services:
   server:
     image: public.ecr.aws/succinct-labs/aurelien-private-proving-test:latest
     environment:
-      - RUST_LOG=info
+      - RUST_LOG=debug
     ports:
       - "8080:8080"
     depends_on:

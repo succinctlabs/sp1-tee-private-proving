@@ -1,0 +1,39 @@
+services:
+  ingress:
+    image: public.ecr.aws/succinct-labs/aurelien-private-proving-test:ingress
+    ports:
+      - "443:443"
+    environment:
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - DOMAIN=leruaa-private.work
+      - GATEWAY_DOMAIN=_.dstack-gpu08.phala.network
+      - CERTBOT_EMAIL=aurelien@succinct.xyz
+      - SET_CAA=true
+      - TARGET_ENDPOINT=grpc://server:8080
+    volumes:
+      - /var/run/tappd.sock:/var/run/tappd.sock
+      - cert-data:/etc/letsencrypt
+    restart: unless-stopped
+  server:
+    image: public.ecr.aws/succinct-labs/aurelien-private-proving-test:latest
+    environment:
+      - HOSTNAME=https://leruaa-private.work:18364
+      - RUST_LOG=info
+    ports:
+      - "8080:8080"
+    depends_on:
+      - moongate
+    restart: unless-stopped
+  moongate:
+    image: public.ecr.aws/succinct-labs/moongate:v5.0.7-rc.1
+    runtime: nvidia
+    deploy:
+      resources:
+          reservations:
+            devices:
+              - driver: nvidia
+                capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  cert-data:  # Persistent volume for certificates

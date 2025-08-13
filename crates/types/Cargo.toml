@@ -8,6 +8,7 @@ edition.workspace = true
 alloy-primitives.workspace = true
 anyhow.workspace = true
 bincode.workspace = true
+mti.workspace = true
 serde.workspace = true
 prost.workspace = true
 prost-types.workspace = true

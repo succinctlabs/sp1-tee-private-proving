@@ -1,6 +1,3 @@
-mod artifact;
-pub use artifact::ArtifactType;
-
 mod key;
 pub use key::Key;
 

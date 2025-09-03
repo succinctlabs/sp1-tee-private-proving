@@ -28,6 +28,8 @@ thiserror = "2.0.12"
 sp1-sdk = { version = "5.0.8", features = ["network"] }
 sp1-prover = { version = "5.0.8" }
 sp1-core-executor = { version = "5.0.8" }
+spn-artifacts = { git = "https://github.com/succinctlabs/network" }
+
 
 # Alloy
 alloy-primitives = { version = "1.2.1", features = ["rand"] }

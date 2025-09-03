@@ -21,7 +21,7 @@ pub struct PendingRequest {
 
 impl PendingRequest {
     pub fn from_request_body(
-        body: RequestProofRequestBody,
+        body: &RequestProofRequestBody,
         id: B256,
         mode: ProofMode,
         stdin: Arc<SP1Stdin>,
@@ -51,6 +51,9 @@ pub enum UnfulfillableRequestReason {
     #[error("Program not registered")]
     ProgramNotRegistered,
 
+    #[error("Program not found")]
+    ProgramNotFound,
+
     #[error("Deadline exceeded")]
     DeadlineExceeded,
 
@@ -62,6 +65,12 @@ pub enum UnfulfillableRequestReason {
 
     #[error("Proving error: {0}")]
     ProvingError(String),
+
+    #[error("Bincode error: {0}")]
+    Bincode(#[from] Box<bincode::ErrorKind>),
+
+    #[error("Unknown error: {0}")]
+    Other(String),
 }
 
 #[derive(Debug)]

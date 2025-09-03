@@ -8,12 +8,12 @@ use alloy_primitives::B256;
 use async_stream::stream;
 use futures::Stream;
 use lru::LruCache;
-use sp1_sdk::{ProofFromNetwork, SP1ProofWithPublicValues, SP1Stdin};
+use sp1_sdk::{ProofFromNetwork, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin};
 use tokio::sync::{Mutex, Notify};
 use tonic::async_trait;
 
 use crate::{
-    db::{Artifact, ArtifactId, Db, Program},
+    db::{Artifact, ArtifactId, Db},
     types::{Key, PendingRequest, Request, UnfulfillableRequestReason},
 };
 
@@ -21,6 +21,7 @@ use crate::{
 pub struct InMemoryDb {
     artifact_requests: Mutex<HashSet<Key>>,
     artifacts: Mutex<LruCache<ArtifactId, Artifact>>,
+    proving_keys: Mutex<LruCache<B256, Arc<SP1ProvingKey>>>,
     pending_requests: Mutex<VecDeque<PendingRequest>>,
     requests: Mutex<LruCache<B256, Arc<Request>>>,
     notify_new_pending_request: Notify,
@@ -31,6 +32,7 @@ impl InMemoryDb {
         Self {
             artifact_requests: Mutex::new(HashSet::new()),
             artifacts: Mutex::new(LruCache::new(NonZeroUsize::new(1024).unwrap())),
+            proving_keys: Mutex::new(LruCache::new(NonZeroUsize::new(128).unwrap())),
             pending_requests: Mutex::new(VecDeque::new()),
             requests: Mutex::new(LruCache::new(NonZeroUsize::new(256).unwrap())),
             notify_new_pending_request: Notify::new(),
@@ -65,18 +67,16 @@ impl Db for InMemoryDb {
         artifacts.push(new_id, artifact);
     }
 
-    async fn update_artifact(&self, id: ArtifactId, artifact: Artifact) {
-        let mut artifacts = self.artifacts.lock().await;
+    async fn insert_proving_key(&self, vk_hash: B256, pk: Arc<SP1ProvingKey>) {
+        let mut proving_keys = self.proving_keys.lock().await;
 
-        artifacts.push(id, artifact);
+        proving_keys.push(vk_hash, pk);
     }
 
-    async fn get_program(&self, vk_hash: B256) -> Option<Arc<Program>> {
-        let mut artifacts = self.artifacts.lock().await;
+    async fn get_proving_key(&self, vk_hash: B256) -> Option<Arc<SP1ProvingKey>> {
+        let mut proving_keys = self.proving_keys.lock().await;
 
-        artifacts
-            .get(&ArtifactId::VkHash(vk_hash))
-            .and_then(|a| a.as_program())
+        proving_keys.get(&vk_hash).cloned()
     }
 
     async fn get_inputs(&self, vk_hash: B256) -> Option<Arc<SP1Stdin>> {

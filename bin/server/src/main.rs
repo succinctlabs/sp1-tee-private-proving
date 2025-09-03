@@ -40,12 +40,20 @@ async fn main() {
 
     routes_builder.add_service(ProverNetworkServer::new(DefaultPrivateProverServer::new(
         args.hostname.clone(),
+        args.network_rpc_url.clone(),
+        args.network_private_key.clone(),
+        args.programs_s3_region.clone(),
         db.clone(),
         args.worker_count,
     )));
 
     routes_builder.add_service(ArtifactStoreServer::new(
-        DefaultArtifactStoreServer::new(args.hostname.clone(), db.clone()).await,
+        DefaultArtifactStoreServer::new(
+            args.hostname.clone(),
+            args.network_rpc_url.clone(),
+            db.clone(),
+        )
+        .await,
     ));
 
     let grpc_routes = routes_builder.routes().into_axum_router();

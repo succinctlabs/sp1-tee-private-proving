@@ -2,15 +2,16 @@ use std::fmt::Display;
 
 use mti::prelude::{MagicTypeIdExt, V7};
 use serde::Deserialize;
-
-use crate::types::ArtifactType;
+use sp1_sdk::network::proto::artifact::ArtifactType;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct Key(String);
 
 impl Key {
     pub fn new(artifact_type: &ArtifactType, id: &str) -> Self {
-        Self(format!("{artifact_type}/{id}"))
+        let artifact_name = artifact_type.as_str_name().to_lowercase();
+
+        Self(format!("{artifact_name}/{id}"))
     }
 
     pub fn generate(artifact_type: &ArtifactType) -> Self {

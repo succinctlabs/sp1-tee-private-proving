@@ -20,9 +20,9 @@ pub trait Db: Send + Sync + 'static {
 
     async fn update_artifact_id(&self, key: Key, new_id: ArtifactId);
 
-    async fn update_artifact(&self, id: ArtifactId, artifact: Artifact);
+    async fn insert_proving_key(&self, vk_hash: B256, pk: Arc<SP1ProvingKey>);
 
-    async fn get_program(&self, vk_hash: B256) -> Option<Arc<Program>>;
+    async fn get_proving_key(&self, vk_hash: B256) -> Option<Arc<SP1ProvingKey>>;
 
     async fn get_inputs(&self, vk_hash: B256) -> Option<Arc<SP1Stdin>>;
 
@@ -48,31 +48,16 @@ pub trait Db: Send + Sync + 'static {
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum ArtifactId {
     Key(Key),
-    VkHash(B256),
     RequestId(B256),
 }
 
 #[derive(Clone)]
 pub enum Artifact {
-    Program(Arc<Program>),
     Inputs(Arc<SP1Stdin>),
     Proof(Arc<ProofFromNetwork>),
 }
 
-#[derive(Clone)]
-pub enum Program {
-    Elf(Vec<u8>),
-    ProvingKey(Arc<SP1ProvingKey>),
-}
-
 impl Artifact {
-    pub fn as_program(&self) -> Option<Arc<Program>> {
-        match self {
-            Artifact::Program(program) => Some(program.clone()),
-            _ => None,
-        }
-    }
-
     pub fn as_inputs(&self) -> Option<Arc<SP1Stdin>> {
         match self {
             Artifact::Inputs(stdin) => Some(stdin.clone()),
@@ -85,18 +70,6 @@ impl Artifact {
             Artifact::Proof(proof) => Some(proof.clone()),
             _ => None,
         }
-    }
-}
-
-impl From<Vec<u8>> for Artifact {
-    fn from(value: Vec<u8>) -> Self {
-        Self::Program(Arc::new(Program::Elf(value)))
-    }
-}
-
-impl From<SP1ProvingKey> for Artifact {
-    fn from(value: SP1ProvingKey) -> Self {
-        Self::Program(Arc::new(Program::ProvingKey(Arc::new(value))))
     }
 }
 

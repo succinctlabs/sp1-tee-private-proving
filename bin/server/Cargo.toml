@@ -28,6 +28,8 @@ tonic.workspace = true
 sp1-sdk.workspace = true
 sp1-prover.workspace = true
 sp1-core-executor.workspace = true
+spn-artifacts.workspace = true
+
 
 async-stream = "0.3.6"
 dstack-sdk = { git = "https://github.com/Dstack-TEE/dstack.git" }

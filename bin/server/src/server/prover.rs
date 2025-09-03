@@ -3,35 +3,65 @@ use std::{pin::pin, sync::Arc};
 use alloy_primitives::B256;
 use anyhow::Result;
 use futures::StreamExt;
-use sp1_sdk::network::proto::types::{
-    CreateProgramRequest, CreateProgramResponse, CreateProgramResponseBody, FulfillmentStatus,
-    GetNonceRequest, GetNonceResponse, GetProgramRequest, GetProgramResponse,
-    GetProofRequestStatusRequest, GetProofRequestStatusResponse, ProofMode, RequestProofRequest,
-    RequestProofResponse, RequestProofResponseBody,
+use sp1_sdk::{
+    NetworkSigner,
+    network::{
+        NetworkClient,
+        proto::{
+            artifact::ArtifactType,
+            network::prover_network_client::ProverNetworkClient,
+            types::{
+                CreateProgramRequest, CreateProgramResponse, FulfillmentStatus, GetNonceRequest,
+                GetNonceResponse, GetProgramRequest, GetProgramResponse,
+                GetProofRequestStatusRequest, GetProofRequestStatusResponse, ProofMode,
+                RequestProofRequest, RequestProofResponse, RequestProofResponseBody,
+            },
+        },
+    },
 };
-use tonic::{Request, Response, Status};
+use tonic::{Request, Response, Status, transport::Channel};
 
 use crate::{
     db::{ArtifactId, Db},
     fulfiller::Fulfiller,
-    types::{
-        ArtifactType, Key, PendingRequest, Request as ProofRequest,
-        prover_network_server::ProverNetwork,
-    },
-    utils::PresignedUrl,
+    types::{Key, PendingRequest, Request as ProofRequest, prover_network_server::ProverNetwork},
+    utils::{PresignedUrl, configure_endpoint},
 };
 
 #[derive(Debug, Clone)]
 pub struct DefaultPrivateProverServer<DB: Db> {
     hostname: String,
+    network_rpc_url: String,
     db: Arc<DB>,
 }
 
 impl<DB: Db> DefaultPrivateProverServer<DB> {
-    pub fn new(hostname: String, db: Arc<DB>, worker_count: usize) -> Self {
-        spawn_workers(db.clone(), worker_count);
+    pub fn new(
+        hostname: String,
+        network_rpc_url: String,
+        network_private_key: String,
+        programs_s3_region: String,
+        db: Arc<DB>,
+        worker_count: usize,
+    ) -> Self {
+        spawn_workers(
+            db.clone(),
+            network_rpc_url.clone(),
+            network_private_key,
+            programs_s3_region,
+            worker_count,
+        );
 
-        Self { hostname, db }
+        Self {
+            hostname,
+            network_rpc_url,
+            db,
+        }
+    }
+
+    async fn prover_network_client(&self) -> Result<ProverNetworkClient<Channel>> {
+        let channel = configure_endpoint(&self.network_rpc_url)?.connect().await?;
+        Ok(ProverNetworkClient::new(channel))
     }
 }
 
@@ -42,60 +72,58 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         request: Request<CreateProgramRequest>,
     ) -> Result<Response<CreateProgramResponse>, Status> {
         let request = request.into_inner();
-        let body = request
-            .body
-            .ok_or_else(|| Status::invalid_argument("missing body"))?;
-        let vk_hash = B256::from_slice(&body.vk_hash);
+        let mut network_client = self.prover_network_client().await.unwrap();
+        let response_from_network = network_client.create_program(request).await?;
 
-        self.db
-            .update_artifact_id(
-                Key::from_uri(&body.program_uri),
-                ArtifactId::VkHash(vk_hash),
-            )
-            .await;
-
-        Ok(Response::new(CreateProgramResponse {
-            tx_hash: vec![],
-            body: Some(CreateProgramResponseBody {}),
-        }))
+        Ok(response_from_network)
     }
 
     async fn get_program(
         &self,
         request: Request<GetProgramRequest>,
     ) -> Result<Response<GetProgramResponse>, Status> {
-        let vk_hash = request.into_inner().vk_hash;
-        let program = self.db.get_program(B256::from_slice(&vk_hash)).await;
+        let request = request.into_inner();
+        let mut network_client = self.prover_network_client().await.unwrap();
 
-        match program {
-            Some(_) => Ok(Response::new(GetProgramResponse { program: None })),
-            None => Err(Status::not_found("Program not found")),
-        }
+        network_client.get_program(request).await
     }
 
     async fn get_nonce(
         &self,
         request: Request<GetNonceRequest>,
     ) -> Result<Response<GetNonceResponse>, Status> {
-        Ok(Response::new(GetNonceResponse { nonce: 0 }))
+        let mut network_client = self.prover_network_client().await.unwrap();
+
+        network_client.get_nonce(request).await
     }
 
     async fn request_proof(
         &self,
         request: Request<RequestProofRequest>,
     ) -> Result<Response<RequestProofResponse>, Status> {
-        tracing::debug!("Start request_proof");
+        tracing::debug!("Start request proof");
         let request = request.into_inner();
-        let body = request
+        let request_body = request
             .body
-            .ok_or_else(|| Status::invalid_argument("missing body"))?;
-        let request_id = B256::random(); // TODO: Handle
-        let mode = ProofMode::try_from(body.mode)
+            .clone()
+            .ok_or_else(|| Status::invalid_argument("missing request body"))?;
+
+        let mut network_client = self.prover_network_client().await.unwrap();
+
+        tracing::debug!("Forward proof request to the network");
+        let response_from_network = network_client.request_proof(request).await?.into_inner();
+        let response_body = response_from_network
+            .body
+            .clone()
+            .ok_or_else(|| Status::invalid_argument("missing networs response body"))?;
+
+        let request_id = B256::from_slice(&response_body.request_id);
+        let mode = ProofMode::try_from(request_body.mode)
             .map_err(|_| Status::invalid_argument("missing proof mode"))?;
 
         self.db
             .update_artifact_id(
-                Key::from_uri(&body.stdin_uri),
+                Key::from_uri(&request_body.stdin_uri),
                 ArtifactId::RequestId(request_id),
             )
             .await;
@@ -106,7 +134,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
             .await
             .ok_or_else(|| Status::invalid_argument("missing stdin"))?;
 
-        let request = PendingRequest::from_request_body(body, request_id, mode, inputs);
+        let request = PendingRequest::from_request_body(&request_body, request_id, mode, inputs);
         let response = RequestProofResponse {
             tx_hash: B256::random().to_vec(), // TODO: Impl
             body: Some(RequestProofResponseBody {
@@ -161,42 +189,63 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
     }
 }
 
-fn spawn_workers<DB: Db>(db: Arc<DB>, worker_count: usize) {
+fn spawn_workers<DB: Db>(
+    db: Arc<DB>,
+    network_rpc_url: String,
+    network_private_key: String,
+    programs_s3_region: String,
+    worker_count: usize,
+) {
     tokio::spawn(async move {
         let mut pending_requests = pin!(db.get_requests_to_process_stream());
+        let network_client = NetworkClient::new(
+            NetworkSigner::local(&network_private_key).unwrap(),
+            network_rpc_url,
+        );
+        let network_client = Arc::new(network_client);
         let (tx, rx) = crossbeam::channel::unbounded::<PendingRequest>();
 
         for gpu_id in 0..worker_count {
             let db = db.clone();
             let rx = rx.clone();
+            let network_client = network_client.clone();
+            let programs_s3_region = programs_s3_region.clone();
 
             tokio::spawn(async move {
                 while let Ok(request) = rx.recv() {
                     db.set_request_as_assigned(request.id).await;
 
                     tracing::debug!("Get program {}", request.vk_hash);
-                    let program = db.get_program(request.vk_hash).await;
+                    let pk = db.get_proving_key(request.vk_hash).await;
 
-                    if let Some(program) = program {
-                        #[cfg(not(feature = "mock"))]
-                        let fulfiller =
-                            Fulfiller::new(program, request.clone(), gpu_id, db.clone());
+                    #[cfg(not(feature = "mock"))]
+                    let fulfiller = Fulfiller::new(
+                        pk,
+                        request.clone(),
+                        gpu_id,
+                        db.clone(),
+                        network_client.clone(),
+                        programs_s3_region.clone(),
+                    );
 
-                        #[cfg(feature = "mock")]
-                        let fulfiller = Fulfiller::mock(program, request.clone(), db.clone());
+                    #[cfg(feature = "mock")]
+                    let fulfiller = Fulfiller::mock(
+                        pk,
+                        request.clone(),
+                        db.clone(),
+                        network_client.clone(),
+                        programs_s3_region.clone(),
+                    );
 
-                        match fulfiller.process().await {
-                            Ok(proof) => {
-                                tracing::info!("Proved {}", request.id);
-                                db.set_request_as_fulfilled(request.id, proof).await;
-                            }
-                            Err(reason) => {
-                                tracing::error!("Failed to prove {}: {reason}", request.id);
-                                db.set_request_as_unfulfillable(request.id, reason).await;
-                            }
+                    match fulfiller.process().await {
+                        Ok(proof) => {
+                            tracing::info!("Proved {}", request.id);
+                            db.set_request_as_fulfilled(request.id, proof).await;
                         }
-                    } else {
-                        tracing::error!("The program was not found for {}", request.id);
+                        Err(reason) => {
+                            tracing::error!("Failed to prove {}: {reason}", request.id);
+                            db.set_request_as_unfulfillable(request.id, reason).await;
+                        }
                     }
                 }
             });

@@ -1,20 +1,35 @@
 use std::sync::Arc;
 
+use anyhow::Result;
 use sp1_sdk::network::proto::artifact::{
-    CreateArtifactRequest, CreateArtifactResponse, artifact_store_server::ArtifactStore,
+    ArtifactType, CreateArtifactRequest, CreateArtifactResponse,
+    artifact_store_client::ArtifactStoreClient, artifact_store_server::ArtifactStore,
 };
-use tonic::{Request, Response, Status};
+use tonic::{Request, Response, Status, transport::Channel};
 
-use crate::{db::Db, types::ArtifactType, utils::PresignedUrl};
+use crate::{
+    db::Db,
+    utils::{PresignedUrl, configure_endpoint},
+};
 
 pub struct DefaultArtifactStoreServer<DB: Db> {
     hostname: String,
+    network_rpc_url: String,
     db: Arc<DB>,
 }
 
 impl<DB: Db> DefaultArtifactStoreServer<DB> {
-    pub async fn new(hostname: String, db: Arc<DB>) -> Self {
-        Self { hostname, db }
+    pub async fn new(hostname: String, network_rpc_url: String, db: Arc<DB>) -> Self {
+        Self {
+            hostname,
+            network_rpc_url,
+            db,
+        }
+    }
+
+    async fn artifact_store_client(&self) -> Result<ArtifactStoreClient<Channel>> {
+        let channel = configure_endpoint(&self.network_rpc_url)?.connect().await?;
+        Ok(ArtifactStoreClient::new(channel))
     }
 }
 
@@ -29,17 +44,28 @@ impl<DB: Db> ArtifactStore for DefaultArtifactStoreServer<DB> {
 
         let artifact_type = ArtifactType::try_from(request.artifact_type)
             .unwrap_or(ArtifactType::UnspecifiedArtifactType);
-        let presigned = PresignedUrl::new(&artifact_type);
 
-        let artifact_presigned_url = presigned.url(&self.hostname);
+        match artifact_type {
+            ArtifactType::Program => {
+                let mut artifact_store = self.artifact_store_client().await.unwrap();
 
-        tracing::info!("created presigned url: {}", artifact_presigned_url);
+                artifact_store.create_artifact(request).await
+            }
+            ArtifactType::Stdin => {
+                let presigned = PresignedUrl::new(&artifact_type);
 
-        self.db.insert_artifact_request(presigned.key.clone()).await;
+                let artifact_presigned_url = presigned.url(&self.hostname);
 
-        Ok(Response::new(CreateArtifactResponse {
-            artifact_uri: presigned.key.as_uri(),
-            artifact_presigned_url,
-        }))
+                tracing::info!("created presigned url: {}", artifact_presigned_url);
+
+                self.db.insert_artifact_request(presigned.key.clone()).await;
+
+                Ok(Response::new(CreateArtifactResponse {
+                    artifact_uri: presigned.key.as_uri(),
+                    artifact_presigned_url,
+                }))
+            }
+            _ => Err(Status::unavailable("")),
+        }
     }
 }

@@ -3,23 +3,17 @@ use std::{pin::pin, sync::Arc};
 use alloy_primitives::B256;
 use anyhow::Result;
 use futures::StreamExt;
-use sp1_sdk::{
-    network::proto::{
-        artifact::{
-            CreateArtifactRequest, CreateArtifactResponse, artifact_store_server::ArtifactStore,
-        },
-        types::FulfillmentStatus,
-    },
-    private::proto::{
-        CreateProgramRequest, CreateProgramResponse, GetProofRequestStatusRequest,
-        GetProofRequestStatusResponse, ProgramExistsRequest, ProgramExistsResponse, ProofMode,
-        RequestProofRequest, RequestProofResponse, RequestProofResponseBody,
-        private_prover_server::PrivateProver,
-    },
+use sp1_sdk::network::proto::types::{
+    CreateProgramRequest, CreateProgramResponse, CreateProgramResponseBody, FulfillmentStatus,
+    GetNonceRequest, GetNonceResponse, GetProgramRequest, GetProgramResponse,
+    GetProofRequestStatusRequest, GetProofRequestStatusResponse, Program, ProofMode,
+    RequestProofRequest, RequestProofResponse, RequestProofResponseBody,
 };
-use sp1_tee_private_types::{ArtifactType, Key, PendingRequest, Request as ProofRequest};
+use sp1_tee_private_types::{
+    ArtifactType, Key, PendingRequest, Request as ProofRequest,
+    prover_network_server::ProverNetwork,
+};
 use tonic::{Request, Response, Status};
-use tracing::instrument;
 
 use crate::{
     db::{ArtifactId, Db},
@@ -42,8 +36,7 @@ impl<DB: Db> DefaultPrivateProverServer<DB> {
 }
 
 #[tonic::async_trait]
-impl<DB: Db> PrivateProver for DefaultPrivateProverServer<DB> {
-    #[instrument(level = "debug", skip_all)]
+impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
     async fn create_program(
         &self,
         request: Request<CreateProgramRequest>,
@@ -52,33 +45,41 @@ impl<DB: Db> PrivateProver for DefaultPrivateProverServer<DB> {
         let body = request
             .body
             .ok_or_else(|| Status::invalid_argument("missing body"))?;
+        let vk_hash = B256::from_slice(&body.vk_hash);
 
         self.db
             .update_artifact_id(
                 Key::from_uri(&body.program_uri),
-                ArtifactId::VkHash(B256::from_slice(&body.vk_hash)),
+                ArtifactId::VkHash(vk_hash),
             )
             .await;
 
-        Ok(Response::new(CreateProgramResponse {}))
+        Ok(Response::new(CreateProgramResponse {
+            tx_hash: vec![],
+            body: Some(CreateProgramResponseBody {}),
+        }))
     }
 
-    #[instrument(level = "debug", skip_all)]
-    async fn program_exists(
+    async fn get_program(
         &self,
-        request: Request<ProgramExistsRequest>,
-    ) -> Result<Response<ProgramExistsResponse>, Status> {
+        request: Request<GetProgramRequest>,
+    ) -> Result<Response<GetProgramResponse>, Status> {
         let vk_hash = request.into_inner().vk_hash;
-        let exists = self
-            .db
-            .get_program(B256::from_slice(&vk_hash))
-            .await
-            .is_some();
+        let program = self.db.get_program(B256::from_slice(&vk_hash)).await;
 
-        Ok(Response::new(ProgramExistsResponse { exists }))
+        match program {
+            Some(_) => Ok(Response::new(GetProgramResponse { program: None })),
+            None => Err(Status::not_found("Program not found")),
+        }
     }
 
-    #[instrument(level = "debug", skip_all)]
+    async fn get_nonce(
+        &self,
+        request: Request<GetNonceRequest>,
+    ) -> Result<Response<GetNonceResponse>, Status> {
+        Ok(Response::new(GetNonceResponse { nonce: 0 }))
+    }
+
     async fn request_proof(
         &self,
         request: Request<RequestProofRequest>,
@@ -107,19 +108,16 @@ impl<DB: Db> PrivateProver for DefaultPrivateProverServer<DB> {
 
         let request = PendingRequest::from_request_body(body, request_id, mode, inputs);
         let response = RequestProofResponse {
-            tx_hash: vec![],
+            tx_hash: B256::random().to_vec(), // TODO: Impl
             body: Some(RequestProofResponseBody {
                 request_id: request.id.to_vec(),
             }),
         };
-
-        tracing::debug!("Insert request");
         self.db.insert_request(request).await;
 
         Ok(Response::new(response))
     }
 
-    #[instrument(level = "debug", skip_all)]
     async fn get_proof_request_status(
         &self,
         request: Request<GetProofRequestStatusRequest>,
@@ -137,7 +135,7 @@ impl<DB: Db> PrivateProver for DefaultPrivateProverServer<DB> {
             ProofRequest::Unfulfillable { .. } => FulfillmentStatus::Unfulfillable,
         };
 
-        let proof_presigned_url = match request.as_ref() {
+        let proof_uri = match request.as_ref() {
             ProofRequest::Fulfilled { proof } => {
                 let presigned = PresignedUrl::new(&ArtifactType::Proof);
                 self.db
@@ -154,37 +152,12 @@ impl<DB: Db> PrivateProver for DefaultPrivateProverServer<DB> {
             request_tx_hash: vec![],
             deadline: u64::MAX,
             fulfill_tx_hash: None,
-            proof_presigned_url,
+            proof_uri,
+            public_values_hash: None,
+            proof_public_uri: None,
         };
 
-        tracing::debug!("Send status");
         Ok(Response::new(response))
-    }
-}
-
-#[tonic::async_trait]
-impl<DB: Db> ArtifactStore for DefaultPrivateProverServer<DB> {
-    async fn create_artifact(
-        &self,
-        request: Request<CreateArtifactRequest>,
-    ) -> Result<Response<CreateArtifactResponse>, Status> {
-        // Parse the request.
-        let request = request.into_inner();
-
-        let artifact_type = ArtifactType::try_from(request.artifact_type)
-            .unwrap_or(ArtifactType::UnspecifiedArtifactType);
-        let presigned = PresignedUrl::new(&artifact_type);
-
-        let artifact_presigned_url = presigned.url(&self.hostname);
-
-        tracing::info!("created presigned url: {}", artifact_presigned_url);
-
-        self.db.insert_artifact_request(presigned.key.clone()).await;
-
-        Ok(Response::new(CreateArtifactResponse {
-            artifact_uri: presigned.key.as_uri(),
-            artifact_presigned_url,
-        }))
     }
 }
 
@@ -201,16 +174,18 @@ fn spawn_workers<DB: Db>(db: Arc<DB>, worker_count: usize) {
                 while let Ok(request) = rx.recv() {
                     db.set_request_as_assigned(request.id).await;
 
-                    let pk = db.get_program(request.vk_hash).await;
+                    tracing::debug!("Get program {}", request.vk_hash);
+                    let program = db.get_program(request.vk_hash).await;
 
-                    if let Some(pk) = pk {
+                    if let Some(program) = program {
                         #[cfg(not(feature = "mock"))]
-                        let fulfiller = Fulfiller::new(pk, request.clone(), gpu_id);
+                        let fulfiller =
+                            Fulfiller::new(program, request.clone(), gpu_id, db.clone());
 
                         #[cfg(feature = "mock")]
-                        let fulfiller = Fulfiller::mock(pk, request.clone());
+                        let fulfiller = Fulfiller::mock(program, request.clone(), db.clone());
 
-                        match fulfiller.process() {
+                        match fulfiller.process().await {
                             Ok(proof) => {
                                 tracing::info!("Proved {}", request.id);
                                 db.set_request_as_fulfilled(request.id, proof).await;
@@ -220,6 +195,8 @@ fn spawn_workers<DB: Db>(db: Arc<DB>, worker_count: usize) {
                                 db.set_request_as_unfulfillable(request.id, reason).await;
                             }
                         }
+                    } else {
+                        tracing::error!("The program was not found for {}", request.id);
                     }
                 }
             });

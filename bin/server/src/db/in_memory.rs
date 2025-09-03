@@ -8,12 +8,12 @@ use alloy_primitives::B256;
 use async_stream::stream;
 use futures::Stream;
 use lru::LruCache;
-use sp1_sdk::{ProofFromNetwork, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin};
+use sp1_sdk::{ProofFromNetwork, SP1ProofWithPublicValues, SP1Stdin};
 use sp1_tee_private_types::{Key, PendingRequest, Request, UnfulfillableRequestReason};
 use tokio::sync::{Mutex, Notify};
 use tonic::async_trait;
 
-use crate::db::{Artifact, ArtifactId, Db};
+use crate::db::{Artifact, ArtifactId, Db, Program};
 
 #[derive(Debug)]
 pub struct InMemoryDb {
@@ -63,7 +63,13 @@ impl Db for InMemoryDb {
         artifacts.push(new_id, artifact);
     }
 
-    async fn get_program(&self, vk_hash: B256) -> Option<Arc<SP1ProvingKey>> {
+    async fn update_artifact(&self, id: ArtifactId, artifact: Artifact) {
+        let mut artifacts = self.artifacts.lock().await;
+
+        artifacts.push(id, artifact);
+    }
+
+    async fn get_program(&self, vk_hash: B256) -> Option<Arc<Program>> {
         let mut artifacts = self.artifacts.lock().await;
 
         artifacts

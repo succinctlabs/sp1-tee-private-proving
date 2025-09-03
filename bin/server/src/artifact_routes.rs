@@ -8,7 +8,7 @@ use axum::{
 };
 use futures::TryStreamExt;
 use serde::de::DeserializeOwned;
-use sp1_sdk::{SP1ProvingKey, SP1Stdin};
+use sp1_sdk::SP1Stdin;
 use sp1_tee_private_types::{ArtifactType, Key};
 use tokio::{sync::oneshot, task::spawn_blocking};
 use tokio_util::io::{StreamReader, SyncIoBridge};
@@ -30,13 +30,13 @@ pub async fn upload_artifact(
     }
 
     match ty {
-        ArtifactType::Program => match deserialize::<_, SP1ProvingKey>(sync_reader).await {
-            Ok(pk) => {
-                db.insert_artifact(ty.key(&id), pk.into()).await;
+        ArtifactType::Program => match deserialize::<_, Vec<u8>>(sync_reader).await {
+            Ok(elf) => {
+                db.insert_artifact(ty.key(&id), elf.into()).await;
                 StatusCode::OK
             }
             Err(err) => {
-                tracing::error!("{err}");
+                tracing::error!("Failed to deserialize ELF artifact {err}");
                 StatusCode::INTERNAL_SERVER_ERROR
             }
         },
@@ -46,7 +46,7 @@ pub async fn upload_artifact(
                 StatusCode::OK
             }
             Err(err) => {
-                tracing::error!("{err}");
+                tracing::error!("Failed to deserialize sdtin artifact: {err}");
                 StatusCode::INTERNAL_SERVER_ERROR
             }
         },
@@ -61,7 +61,7 @@ pub async fn download_artifact(
     match db.get_proof(Key::new(&ty, &id)).await {
         Some(proof) => {
             let proof_bytes = bincode::serialize(proof.as_ref()).map_err(|err| {
-                tracing::error!("{err}");
+                tracing::error!("Failed to serialize proof: {err}");
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
             Ok(proof_bytes)
@@ -77,9 +77,7 @@ async fn deserialize<R: Read + Send + 'static, T: DeserializeOwned + Send + 'sta
 
     spawn_blocking(move || {
         let mut buf = vec![];
-        tracing::info!("start read to end");
         if let Err(err) = reader.read_to_end(&mut buf).map_err(|err| anyhow!("{err}")) {
-            tracing::error!("read to end error: {err}");
             let _ = tx.send(Err(err));
             return;
         }
@@ -87,7 +85,6 @@ async fn deserialize<R: Read + Send + 'static, T: DeserializeOwned + Send + 'sta
         tracing::info!("start deserialize");
         let artifact = bincode::deserialize::<T>(&buf).map_err(|err| anyhow!("{err}"));
 
-        tracing::info!("send");
         let _ = tx.send(artifact);
     });
 

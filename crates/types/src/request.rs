@@ -4,7 +4,7 @@ use alloy_primitives::B256;
 use sp1_core_executor::ExecutionError;
 use sp1_sdk::{
     SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin,
-    private::proto::{ProofMode, RequestProofRequestBody},
+    network::proto::types::{ProofMode, RequestProofRequestBody},
 };
 use thiserror::Error;
 

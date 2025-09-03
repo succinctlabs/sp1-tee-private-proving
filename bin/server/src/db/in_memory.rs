@@ -8,19 +8,19 @@ use alloy_primitives::B256;
 use async_stream::stream;
 use futures::Stream;
 use lru::LruCache;
-use sp1_sdk::{ProofFromNetwork, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin};
+use sp1_sdk::{ProofFromNetwork, SP1ProvingKey, SP1Stdin};
 use tokio::sync::{Mutex, Notify};
 use tonic::async_trait;
 
 use crate::{
-    db::{Artifact, ArtifactId, Db},
+    db::{Artifact, Db},
     types::{Key, PendingRequest, Request, UnfulfillableRequestReason},
 };
 
 #[derive(Debug)]
 pub struct InMemoryDb {
     artifact_requests: Mutex<HashSet<Key>>,
-    artifacts: Mutex<LruCache<ArtifactId, Artifact>>,
+    artifacts: Mutex<LruCache<Key, Artifact>>,
     proving_keys: Mutex<LruCache<B256, Arc<SP1ProvingKey>>>,
     pending_requests: Mutex<VecDeque<PendingRequest>>,
     requests: Mutex<LruCache<B256, Arc<Request>>>,
@@ -57,14 +57,7 @@ impl Db for InMemoryDb {
     async fn insert_artifact(&self, key: Key, artifact: Artifact) {
         let mut artifacts = self.artifacts.lock().await;
 
-        artifacts.push(ArtifactId::Key(key), artifact);
-    }
-
-    async fn update_artifact_id(&self, key: Key, new_id: ArtifactId) {
-        let mut artifacts = self.artifacts.lock().await;
-        let artifact = artifacts.pop(&ArtifactId::Key(key)).unwrap();
-
-        artifacts.push(new_id, artifact);
+        artifacts.push(key, artifact);
     }
 
     async fn insert_proving_key(&self, vk_hash: B256, pk: Arc<SP1ProvingKey>) {
@@ -79,20 +72,16 @@ impl Db for InMemoryDb {
         proving_keys.get(&vk_hash).cloned()
     }
 
-    async fn get_inputs(&self, vk_hash: B256) -> Option<Arc<SP1Stdin>> {
+    async fn get_stdin(&self, key: Key) -> Option<Arc<SP1Stdin>> {
         let mut artifacts = self.artifacts.lock().await;
 
-        artifacts
-            .get(&ArtifactId::RequestId(vk_hash))
-            .and_then(|a| a.as_inputs())
+        artifacts.get(&key).and_then(|a| a.as_inputs())
     }
 
     async fn get_proof(&self, key: Key) -> Option<Arc<ProofFromNetwork>> {
         let mut artifacts = self.artifacts.lock().await;
 
-        artifacts
-            .get(&ArtifactId::Key(key))
-            .and_then(|a| a.as_proof())
+        artifacts.get(&key).and_then(|a| a.as_proof())
     }
 
     async fn insert_request(&self, request: PendingRequest) {
@@ -134,15 +123,10 @@ impl Db for InMemoryDb {
         requests.push(request_id, Arc::new(Request::Assigned));
     }
 
-    async fn set_request_as_fulfilled(&self, request_id: B256, proof: SP1ProofWithPublicValues) {
+    async fn set_request_as_fulfilled(&self, request_id: B256, proof_key: Key) {
         let mut requests = self.requests.lock().await;
 
-        requests.push(
-            request_id,
-            Arc::new(Request::Fulfilled {
-                proof: Arc::new(proof),
-            }),
-        );
+        requests.push(request_id, Arc::new(Request::Fulfilled { proof_key }));
     }
 
     async fn set_request_as_unfulfillable(

@@ -1,25 +1,6 @@
 use std::time::Duration;
 
-use sp1_sdk::network::proto::artifact::ArtifactType;
 use tonic::transport::{ClientTlsConfig, Endpoint, Error};
-
-use crate::types::Key;
-
-pub struct PresignedUrl {
-    pub key: Key,
-}
-
-impl PresignedUrl {
-    pub fn new(artifact_type: &ArtifactType) -> Self {
-        Self {
-            key: Key::generate(artifact_type),
-        }
-    }
-
-    pub fn url(&self, hostname: &str) -> String {
-        format!("{hostname}/artifacts/{}", self.key)
-    }
-}
 
 /// Configures the endpoint for the gRPC client.
 ///

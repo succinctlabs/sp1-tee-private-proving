@@ -8,6 +8,8 @@ use sp1_sdk::{
 };
 use thiserror::Error;
 
+use crate::types::Key;
+
 #[derive(Debug, Clone)]
 pub struct PendingRequest {
     pub id: B256,
@@ -76,10 +78,6 @@ pub enum UnfulfillableRequestReason {
 #[derive(Debug)]
 pub enum Request {
     Assigned,
-    Fulfilled {
-        proof: Arc<SP1ProofWithPublicValues>,
-    },
-    Unfulfillable {
-        reason: UnfulfillableRequestReason,
-    },
+    Fulfilled { proof_key: Key },
+    Unfulfillable { reason: UnfulfillableRequestReason },
 }

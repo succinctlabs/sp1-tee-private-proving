@@ -29,6 +29,10 @@ impl Key {
     pub fn as_uri(&self) -> String {
         format!("artifacts://{}", self.0)
     }
+
+    pub fn as_presigned_url(&self, hostname: &str) -> String {
+        format!("{hostname}/artifacts/{}", self.0)
+    }
 }
 
 impl Display for Key {

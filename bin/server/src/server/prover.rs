@@ -22,10 +22,10 @@ use sp1_sdk::{
 use tonic::{Request, Response, Status, transport::Channel};
 
 use crate::{
-    db::{ArtifactId, Db},
+    db::Db,
     fulfiller::Fulfiller,
     types::{Key, PendingRequest, Request as ProofRequest, prover_network_server::ProverNetwork},
-    utils::{PresignedUrl, configure_endpoint},
+    utils::configure_endpoint,
 };
 
 #[derive(Debug, Clone)]
@@ -121,20 +121,13 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         let mode = ProofMode::try_from(request_body.mode)
             .map_err(|_| Status::invalid_argument("missing proof mode"))?;
 
-        self.db
-            .update_artifact_id(
-                Key::from_uri(&request_body.stdin_uri),
-                ArtifactId::RequestId(request_id),
-            )
-            .await;
-
-        let inputs = self
+        let stdin = self
             .db
-            .get_inputs(request_id)
+            .get_stdin(Key::from_uri(&request_body.stdin_uri))
             .await
             .ok_or_else(|| Status::invalid_argument("missing stdin"))?;
 
-        let request = PendingRequest::from_request_body(&request_body, request_id, mode, inputs);
+        let request = PendingRequest::from_request_body(&request_body, request_id, mode, stdin);
         let response = RequestProofResponse {
             tx_hash: B256::random().to_vec(), // TODO: Impl
             body: Some(RequestProofResponseBody {
@@ -164,12 +157,8 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         };
 
         let proof_uri = match request.as_ref() {
-            ProofRequest::Fulfilled { proof } => {
-                let presigned = PresignedUrl::new(&ArtifactType::Proof);
-                self.db
-                    .insert_artifact(presigned.key.clone(), proof.as_ref().into())
-                    .await;
-                Some(presigned.url(&self.hostname))
+            ProofRequest::Fulfilled { proof_key } => {
+                Some(proof_key.as_presigned_url(&self.hostname))
             }
             _ => None,
         };
@@ -240,7 +229,9 @@ fn spawn_workers<DB: Db>(
                     match fulfiller.process().await {
                         Ok(proof) => {
                             tracing::info!("Proved {}", request.id);
-                            db.set_request_as_fulfilled(request.id, proof).await;
+                            let key = Key::generate(&ArtifactType::Proof);
+                            db.insert_artifact(key.clone(), proof.into()).await;
+                            db.set_request_as_fulfilled(request.id, key).await;
                         }
                         Err(reason) => {
                             tracing::error!("Failed to prove {}: {reason}", request.id);

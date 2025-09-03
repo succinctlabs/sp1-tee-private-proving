@@ -9,11 +9,13 @@ use async_stream::stream;
 use futures::Stream;
 use lru::LruCache;
 use sp1_sdk::{ProofFromNetwork, SP1ProofWithPublicValues, SP1Stdin};
-use sp1_tee_private_types::{Key, PendingRequest, Request, UnfulfillableRequestReason};
 use tokio::sync::{Mutex, Notify};
 use tonic::async_trait;
 
-use crate::db::{Artifact, ArtifactId, Db, Program};
+use crate::{
+    db::{Artifact, ArtifactId, Db, Program},
+    types::{Key, PendingRequest, Request, UnfulfillableRequestReason},
+};
 
 #[derive(Debug)]
 pub struct InMemoryDb {

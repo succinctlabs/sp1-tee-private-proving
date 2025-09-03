@@ -3,7 +3,7 @@ use std::fmt::Display;
 use mti::prelude::{MagicTypeIdExt, V7};
 use serde::Deserialize;
 
-use crate::ArtifactType;
+use crate::types::ArtifactType;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct Key(String);

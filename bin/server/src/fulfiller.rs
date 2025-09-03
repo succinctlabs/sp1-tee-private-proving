@@ -3,9 +3,11 @@ use std::sync::Arc;
 use anyhow::Result;
 use sp1_prover::components::CpuProverComponents;
 use sp1_sdk::{CudaProver, Prover, ProverClient, SP1Context, SP1ProofWithPublicValues};
-use sp1_tee_private_types::{PendingRequest, UnfulfillableRequestReason};
 
-use crate::db::{ArtifactId, Db, Program};
+use crate::{
+    db::{ArtifactId, Db, Program},
+    types::{PendingRequest, UnfulfillableRequestReason},
+};
 
 pub struct Fulfiller<P: Prover<CpuProverComponents>, DB: Db> {
     program: Arc<Program>,

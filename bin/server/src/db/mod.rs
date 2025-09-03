@@ -3,8 +3,9 @@ use std::sync::Arc;
 use alloy_primitives::B256;
 use futures::Stream;
 use sp1_sdk::{ProofFromNetwork, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin};
-use sp1_tee_private_types::{Key, PendingRequest, Request, UnfulfillableRequestReason};
 use tonic::async_trait;
+
+use crate::types::{Key, PendingRequest, Request, UnfulfillableRequestReason};
 
 mod in_memory;
 pub use in_memory::InMemoryDb;

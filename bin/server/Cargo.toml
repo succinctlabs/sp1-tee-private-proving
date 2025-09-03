@@ -14,20 +14,27 @@ crossbeam.workspace = true
 dotenv.workspace = true
 futures.workspace = true
 lru.workspace = true
+mti.workspace = true
+prost.workspace = true
+prost-types.workspace = true
 serde.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true
+tonic.workspace = true
+
 
 sp1-sdk.workspace = true
 sp1-prover.workspace = true
-
-sp1-tee-private-types.workspace = true
-
-tonic.workspace = true
+sp1-core-executor.workspace = true
 
 async-stream = "0.3.6"
 dstack-sdk = { git = "https://github.com/Dstack-TEE/dstack.git" }
+
+[build-dependencies]
+prost-build.workspace = true
+tonic-build.workspace = true
 
 [features]
 mock = []

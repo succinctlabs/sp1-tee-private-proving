@@ -6,18 +6,18 @@ use futures::StreamExt;
 use sp1_sdk::network::proto::types::{
     CreateProgramRequest, CreateProgramResponse, CreateProgramResponseBody, FulfillmentStatus,
     GetNonceRequest, GetNonceResponse, GetProgramRequest, GetProgramResponse,
-    GetProofRequestStatusRequest, GetProofRequestStatusResponse, Program, ProofMode,
-    RequestProofRequest, RequestProofResponse, RequestProofResponseBody,
-};
-use sp1_tee_private_types::{
-    ArtifactType, Key, PendingRequest, Request as ProofRequest,
-    prover_network_server::ProverNetwork,
+    GetProofRequestStatusRequest, GetProofRequestStatusResponse, ProofMode, RequestProofRequest,
+    RequestProofResponse, RequestProofResponseBody,
 };
 use tonic::{Request, Response, Status};
 
 use crate::{
     db::{ArtifactId, Db},
     fulfiller::Fulfiller,
+    types::{
+        ArtifactType, Key, PendingRequest, Request as ProofRequest,
+        prover_network_server::ProverNetwork,
+    },
     utils::PresignedUrl,
 };
 

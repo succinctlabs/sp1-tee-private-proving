@@ -9,11 +9,13 @@ use axum::{
 use futures::TryStreamExt;
 use serde::de::DeserializeOwned;
 use sp1_sdk::SP1Stdin;
-use sp1_tee_private_types::{ArtifactType, Key};
 use tokio::{sync::oneshot, task::spawn_blocking};
 use tokio_util::io::{StreamReader, SyncIoBridge};
 
-use crate::db::{Db, InMemoryDb};
+use crate::{
+    db::{Db, InMemoryDb},
+    types::{ArtifactType, Key},
+};
 
 pub async fn upload_artifact(
     Path((ty, id)): Path<(ArtifactType, String)>,

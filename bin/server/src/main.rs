@@ -6,24 +6,23 @@ use axum::{
 };
 use clap::Parser;
 use sp1_sdk::network::proto::artifact::artifact_store_server::ArtifactStoreServer;
-use sp1_tee_private_types::prover_network_server::ProverNetworkServer;
 use tonic::service::Routes;
 use tracing::info;
 
 use crate::{
     artifact_routes::{download_artifact, upload_artifact},
-    artifact_store::DefaultArtifactStoreServer,
     cli::Args,
     db::InMemoryDb,
-    server::DefaultPrivateProverServer,
+    server::{DefaultArtifactStoreServer, DefaultPrivateProverServer},
+    types::prover_network_server::ProverNetworkServer,
 };
 
 mod artifact_routes;
-mod artifact_store;
 mod cli;
 mod db;
 mod fulfiller;
 mod server;
+mod types;
 mod utils;
 
 #[tokio::main]

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::Key;
+use crate::types::Key;
 
 #[derive(
     serde::Serialize,

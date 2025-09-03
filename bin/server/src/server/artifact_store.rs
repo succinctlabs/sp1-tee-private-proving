@@ -3,10 +3,9 @@ use std::sync::Arc;
 use sp1_sdk::network::proto::artifact::{
     CreateArtifactRequest, CreateArtifactResponse, artifact_store_server::ArtifactStore,
 };
-use sp1_tee_private_types::ArtifactType;
 use tonic::{Request, Response, Status};
 
-use crate::{db::Db, utils::PresignedUrl};
+use crate::{db::Db, types::ArtifactType, utils::PresignedUrl};
 
 pub struct DefaultArtifactStoreServer<DB: Db> {
     hostname: String,

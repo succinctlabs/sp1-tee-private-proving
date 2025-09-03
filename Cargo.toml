@@ -1,5 +1,5 @@
 [workspace]
-members = ["bin/server", "crates/types"]
+members = ["bin/server"]
 resolver = "2"
 
 [workspace.package]
@@ -7,9 +7,6 @@ version = "0.0.1"
 edition = "2024"
 
 [workspace.dependencies]
-
-# Workspace
-sp1-tee-private-types = { path = "./crates/types" }
 
 # Shared dependencies
 anyhow = "1.0.98"

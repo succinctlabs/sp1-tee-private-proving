@@ -1,4 +1,4 @@
-use sp1_tee_private_types::{ArtifactType, Key};
+use crate::types::{ArtifactType, Key};
 
 pub struct PresignedUrl {
     pub key: Key,

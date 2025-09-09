@@ -1,22 +1,18 @@
-use std::{pin::pin, sync::Arc};
+use std::sync::Arc;
 
 use alloy_primitives::B256;
 use anyhow::Result;
-use futures::StreamExt;
-use sp1_sdk::{
-    NetworkSigner,
-    network::proto::types::{
-        CreateProgramRequest, CreateProgramResponse, FulfillmentStatus, GetNonceRequest,
-        GetNonceResponse, GetProgramRequest, GetProgramResponse, GetProofRequestStatusRequest,
-        GetProofRequestStatusResponse, ProofMode, RequestProofRequest, RequestProofResponse,
-        RequestProofResponseBody,
-    },
+use sp1_sdk::network::proto::types::{
+    CreateProgramRequest, CreateProgramResponse, GetNonceRequest, GetNonceResponse,
+    GetProgramRequest, GetProgramResponse, GetProofRequestStatusRequest,
+    GetProofRequestStatusResponse, ProofMode, RequestProofRequest, RequestProofResponse,
+    RequestProofResponseBody,
 };
 use tonic::{Request, Response, Status};
 
 use crate::{
     db::Db,
-    fulfiller::Fulfiller,
+    fulfiller::spawn_workers,
     types::{Key, PendingRequest, prover_network_server::ProverNetwork},
     utils::prover_network_client,
 };
@@ -158,76 +154,4 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
 
         Ok(Response::new(response))
     }
-}
-
-fn spawn_workers<DB: Db>(
-    db: Arc<DB>,
-    network_rpc_url: String,
-    network_private_key: String,
-    programs_s3_region: String,
-    hostname: String,
-    worker_count: usize,
-) {
-    tokio::spawn(async move {
-        let mut pending_requests = pin!(db.get_requests_to_process_stream());
-        let fulfiller_signer = NetworkSigner::local(&network_private_key).unwrap();
-        let fulfiller_signer = Arc::new(fulfiller_signer);
-        let (tx, rx) = crossbeam::channel::unbounded::<PendingRequest>();
-
-        for gpu_id in 0..worker_count {
-            let db = db.clone();
-            let rx = rx.clone();
-            let fulfiller_signer = fulfiller_signer.clone();
-            let network_rpc_url = network_rpc_url.clone();
-            let programs_s3_region = programs_s3_region.clone();
-            let hostname = hostname.clone();
-
-            tokio::spawn(async move {
-                while let Ok(pending_request) = rx.recv() {
-                    db.update_request(pending_request.id, |r| {
-                        r.fulfillment_status = FulfillmentStatus::Assigned;
-                    })
-                    .await;
-
-                    tracing::debug!("Get program {}", pending_request.vk_hash);
-                    let pk = db.get_proving_key(pending_request.vk_hash).await;
-
-                    #[cfg(not(feature = "mock"))]
-                    let fulfiller = Fulfiller::new(
-                        pk,
-                        pending_request.clone(),
-                        gpu_id,
-                        db.clone(),
-                        fulfiller_signer.clone(),
-                        network_rpc_url.clone(),
-                        programs_s3_region.clone(),
-                        hostname.clone(),
-                    );
-
-                    #[cfg(feature = "mock")]
-                    let fulfiller = Fulfiller::mock(
-                        pk,
-                        pending_request.clone(),
-                        db.clone(),
-                        fulfiller_signer.clone(),
-                        network_rpc_url.clone(),
-                        programs_s3_region.clone(),
-                        hostname.clone(),
-                    );
-
-                    if let Err(err) = fulfiller.process().await {
-                        tracing::error!("Error during proving {}: {err}", pending_request.id);
-                        db.update_request(pending_request.id, |r| {
-                            r.fulfillment_status = FulfillmentStatus::Unfulfillable;
-                        })
-                        .await;
-                    }
-                }
-            });
-        }
-
-        while let Some(request) = pending_requests.next().await {
-            tx.send(request).unwrap();
-        }
-    });
 }

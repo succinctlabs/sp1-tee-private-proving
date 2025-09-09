@@ -50,6 +50,8 @@ impl<DB: Db> DefaultPrivateProverServer<DB> {
 
 #[tonic::async_trait]
 impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
+    /// Proxy CreateProgram requests to the prover network, as the programs need to be registered in order to be able
+    /// to send proof request to the prover network.
     async fn create_program(
         &self,
         request: Request<CreateProgramRequest>,
@@ -61,6 +63,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         Ok(response_from_network)
     }
 
+    /// Proxy GetProgram requests to the prover network.
     async fn get_program(
         &self,
         request: Request<GetProgramRequest>,
@@ -71,6 +74,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         network_client.get_program(request).await
     }
 
+    /// Proxy GeNonce requests to the prover network.
     async fn get_nonce(
         &self,
         request: Request<GetNonceRequest>,
@@ -80,6 +84,10 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         network_client.get_nonce(request).await
     }
 
+    /// Proxy RequestProof requests to the prover network.
+    /// Also inserts them to a queue to be executed and proved by the enclave.
+    /// The requests sent to the prover network are associated to a *fake* fulfiller,
+    /// and their fulfillment status are updated by the enclave.
     async fn request_proof(
         &self,
         request: Request<RequestProofRequest>,
@@ -93,7 +101,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
 
         let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
 
-        tracing::debug!("Forward proof request to the network");
+        tracing::debug!("Forwarding proof request to the network");
         let response_from_network = network_client.request_proof(request).await?.into_inner();
         let response_body = response_from_network
             .body
@@ -110,15 +118,16 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
             .await
             .ok_or_else(|| Status::invalid_argument("missing stdin"))?;
 
-        let request = PendingRequest::from_request_body(&request_body, request_id, mode, stdin);
+        let pending_request =
+            PendingRequest::from_request_body(&request_body, request_id, mode, stdin);
         let response = RequestProofResponse {
             tx_hash: response_from_network.tx_hash.clone(),
             body: Some(RequestProofResponseBody {
-                request_id: request.id.to_vec(),
+                request_id: response_body.request_id,
             }),
         };
 
-        self.db.insert_pending_request(request).await;
+        self.db.insert_pending_request(pending_request).await;
         self.db
             .insert_request(
                 request_id,
@@ -130,6 +139,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         Ok(Response::new(response))
     }
 
+    // Retrieve the proof request status from the enclave DB.
     async fn get_proof_request_status(
         &self,
         request: Request<GetProofRequestStatusRequest>,

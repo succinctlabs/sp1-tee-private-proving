@@ -173,6 +173,8 @@ impl<P: Prover<CpuProverComponents>, DB: Db> Fulfiller<P, DB> {
         let pk = match self.pk {
             Some(pk) => pk,
             None => {
+                // If the pk is not cached in the DB, retrieve the elf from the prover network,
+                // call setup(), and insert the pk to the cacghe.
                 tracing::debug!("Setup {}", self.request.id);
 
                 let program = network_client
@@ -294,6 +296,7 @@ impl<P: Prover<CpuProverComponents>, DB: Db> Fulfiller<P, DB> {
                     error: None,
                 };
 
+                // Set the proof as unfulfillable on the prover network
                 let fail_fulfill_resp = network_client
                     .fail_fulfillment(FailFulfillmentRequest {
                         format: MessageFormat::Binary.into(),

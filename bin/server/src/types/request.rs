@@ -16,7 +16,6 @@ pub struct PendingRequest {
     pub stdin: Arc<SP1Stdin>,
     pub cycle_limit: u64,
     pub gas_limit: u64,
-    pub deadline: u64,
 }
 
 impl PendingRequest {
@@ -41,7 +40,6 @@ impl PendingRequest {
             stdin,
             cycle_limit: body.cycle_limit,
             gas_limit: body.gas_limit,
-            deadline: body.deadline,
         }
     }
 }
@@ -49,6 +47,7 @@ impl PendingRequest {
 #[derive(Debug, Clone)]
 pub struct ProofRequest {
     pub request_tx_hash: Vec<u8>,
+    pub deadline: u64,
     pub execution_status: ExecutionStatus,
     pub fulfillment_status: FulfillmentStatus,
     pub proof_uri: Option<String>,
@@ -56,9 +55,10 @@ pub struct ProofRequest {
 }
 
 impl ProofRequest {
-    pub fn new(request_tx_hash: Vec<u8>) -> Self {
+    pub fn new(request_tx_hash: Vec<u8>, deadline: u64) -> Self {
         Self {
             request_tx_hash,
+            deadline,
             execution_status: ExecutionStatus::Unexecuted,
             fulfillment_status: FulfillmentStatus::Requested,
             proof_uri: None,

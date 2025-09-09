@@ -124,7 +124,11 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
 
         self.db.insert_pending_request(request).await;
         self.db
-            .insert_request(request_id, response_from_network.tx_hash)
+            .insert_request(
+                request_id,
+                response_from_network.tx_hash,
+                request_body.deadline,
+            )
             .await;
 
         Ok(Response::new(response))
@@ -145,8 +149,8 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
             fulfillment_status: request.fulfillment_status as i32,
             execution_status: request.execution_status as i32,
             request_tx_hash: request.request_tx_hash,
-            deadline: u64::MAX,
-            fulfill_tx_hash: None,
+            deadline: request.deadline,
+            fulfill_tx_hash: request.fulfill_tx_hash,
             proof_uri: request.proof_uri,
             public_values_hash: None,
             proof_public_uri: None,

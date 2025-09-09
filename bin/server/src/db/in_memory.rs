@@ -96,10 +96,10 @@ impl Db for InMemoryDb {
         requests.get(id).cloned()
     }
 
-    async fn insert_request(&self, id: B256, tx_hash: Vec<u8>) {
+    async fn insert_request(&self, id: B256, tx_hash: Vec<u8>, deadline: u64) {
         let mut requests = self.requests.lock().await;
 
-        requests.push(id, ProofRequest::new(tx_hash));
+        requests.push(id, ProofRequest::new(tx_hash, deadline));
     }
 
     async fn update_request<F: FnMut(&mut ProofRequest) + Send>(&self, id: B256, mut f: F) {

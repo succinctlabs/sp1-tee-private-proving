@@ -30,7 +30,7 @@ pub trait Db: Send + Sync + 'static {
 
     async fn get_request(&self, id: &[u8]) -> Option<ProofRequest>;
 
-    async fn insert_request(&self, id: B256, tx_hash: Vec<u8>);
+    async fn insert_request(&self, id: B256, tx_hash: Vec<u8>, deadline: u64);
 
     async fn update_request<F: FnMut(&mut ProofRequest) + Send>(&self, id: B256, f: F);
 

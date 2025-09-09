@@ -14,7 +14,7 @@ use tonic::async_trait;
 
 use crate::{
     db::{Artifact, Db},
-    types::{Key, PendingRequest, Request, UnfulfillableRequestReason},
+    types::{Key, PendingRequest, ProofRequest},
 };
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ pub struct InMemoryDb {
     artifacts: Mutex<LruCache<Key, Artifact>>,
     proving_keys: Mutex<LruCache<B256, Arc<SP1ProvingKey>>>,
     pending_requests: Mutex<VecDeque<PendingRequest>>,
-    requests: Mutex<LruCache<B256, Arc<Request>>>,
+    requests: Mutex<LruCache<B256, ProofRequest>>,
     notify_new_pending_request: Notify,
 }
 
@@ -84,16 +84,30 @@ impl Db for InMemoryDb {
         artifacts.get(&key).and_then(|a| a.as_proof())
     }
 
-    async fn insert_request(&self, request: PendingRequest) {
+    async fn insert_pending_request(&self, request: PendingRequest) {
         let mut pending_requests = self.pending_requests.lock().await;
         pending_requests.push_front(request);
         self.notify_new_pending_request.notify_one();
     }
 
-    async fn get_request(&self, id: &[u8]) -> Option<Arc<Request>> {
+    async fn get_request(&self, id: &[u8]) -> Option<ProofRequest> {
         let mut requests = self.requests.lock().await;
 
         requests.get(id).cloned()
+    }
+
+    async fn insert_request(&self, id: B256, tx_hash: Vec<u8>) {
+        let mut requests = self.requests.lock().await;
+
+        requests.push(id, ProofRequest::new(tx_hash));
+    }
+
+    async fn update_request<F: FnMut(&mut ProofRequest) + Send>(&self, id: B256, mut f: F) {
+        let mut requests = self.requests.lock().await;
+
+        if let Some(request) = requests.get_mut(&id) {
+            f(request)
+        }
     }
 
     fn get_requests_to_process_stream(&self) -> impl Stream<Item = PendingRequest> + Send + Sync {
@@ -115,27 +129,5 @@ impl Db for InMemoryDb {
                 }
             }
         }
-    }
-
-    async fn set_request_as_assigned(&self, request_id: B256) {
-        let mut requests = self.requests.lock().await;
-
-        requests.push(request_id, Arc::new(Request::Assigned));
-    }
-
-    async fn set_request_as_fulfilled(&self, request_id: B256, proof_key: Key) {
-        let mut requests = self.requests.lock().await;
-
-        requests.push(request_id, Arc::new(Request::Fulfilled { proof_key }));
-    }
-
-    async fn set_request_as_unfulfillable(
-        &self,
-        request_id: B256,
-        reason: UnfulfillableRequestReason,
-    ) {
-        let mut requests = self.requests.lock().await;
-
-        requests.push(request_id, Arc::new(Request::Unfulfillable { reason }));
     }
 }

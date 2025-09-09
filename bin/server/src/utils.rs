@@ -1,6 +1,19 @@
 use std::time::Duration;
 
-use tonic::transport::{ClientTlsConfig, Endpoint, Error};
+use prost::Message;
+use sp1_sdk::{NetworkSigner, network::proto::network::prover_network_client::ProverNetworkClient};
+use tonic::transport::{Channel, ClientTlsConfig, Endpoint, Error};
+
+pub trait Signable: Message {
+    async fn sign(&self, signer: &NetworkSigner) -> anyhow::Result<Vec<u8>>;
+}
+
+impl<T: Message> Signable for T {
+    async fn sign(&self, signer: &NetworkSigner) -> anyhow::Result<Vec<u8>> {
+        let signature = signer.sign_message(self.encode_to_vec().as_slice()).await?;
+        Ok(signature.as_bytes().to_vec())
+    }
+}
 
 /// Configures the endpoint for the gRPC client.
 ///
@@ -22,4 +35,9 @@ pub fn configure_endpoint(addr: &str) -> Result<Endpoint, Error> {
     }
 
     Ok(endpoint)
+}
+
+pub async fn prover_network_client(rpc_url: &str) -> Result<ProverNetworkClient<Channel>, Error> {
+    let channel = configure_endpoint(rpc_url)?.connect().await?;
+    Ok(ProverNetworkClient::new(channel))
 }

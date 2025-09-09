@@ -5,7 +5,7 @@ use futures::Stream;
 use sp1_sdk::{ProofFromNetwork, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin};
 use tonic::async_trait;
 
-use crate::types::{Key, PendingRequest, Request, UnfulfillableRequestReason};
+use crate::types::{Key, PendingRequest, ProofRequest};
 
 mod in_memory;
 pub use in_memory::InMemoryDb;
@@ -26,21 +26,15 @@ pub trait Db: Send + Sync + 'static {
 
     async fn get_proof(&self, key: Key) -> Option<Arc<ProofFromNetwork>>;
 
-    async fn insert_request(&self, request: PendingRequest);
+    async fn insert_pending_request(&self, request: PendingRequest);
 
-    async fn get_request(&self, id: &[u8]) -> Option<Arc<Request>>;
+    async fn get_request(&self, id: &[u8]) -> Option<ProofRequest>;
+
+    async fn insert_request(&self, id: B256, tx_hash: Vec<u8>);
+
+    async fn update_request<F: FnMut(&mut ProofRequest) + Send>(&self, id: B256, f: F);
 
     fn get_requests_to_process_stream(&self) -> impl Stream<Item = PendingRequest> + Send + Sync;
-
-    async fn set_request_as_assigned(&self, request_id: B256);
-
-    async fn set_request_as_fulfilled(&self, request_id: B256, proof_key: Key);
-
-    async fn set_request_as_unfulfillable(
-        &self,
-        request_id: B256,
-        reason: UnfulfillableRequestReason,
-    );
 }
 
 #[derive(Clone)]

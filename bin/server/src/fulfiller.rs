@@ -1,16 +1,24 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow, bail};
 use sp1_prover::components::CpuProverComponents;
 use sp1_sdk::{
-    CudaProver, Prover, ProverClient, SP1Context, SP1ProofWithPublicValues, SP1ProvingKey,
-    network::NetworkClient,
+    CudaProver, NetworkSigner, Prover, ProverClient, SP1Context, SP1ProvingKey,
+    network::proto::{
+        artifact::ArtifactType,
+        types::{
+            ExecutionStatus, FailFulfillmentRequest, FailFulfillmentRequestBody,
+            FulfillProofRequest, FulfillProofRequestBody, FulfillmentStatus, GetNonceRequest,
+            GetProgramRequest, MessageFormat,
+        },
+    },
 };
 use spn_artifacts::{Artifact, extract_artifact_name};
 
 use crate::{
     db::Db,
-    types::{PendingRequest, UnfulfillableRequestReason},
+    types::{Key, PendingRequest},
+    utils::{Signable, prover_network_client},
 };
 
 pub struct Fulfiller<P: Prover<CpuProverComponents>, DB: Db> {
@@ -18,18 +26,23 @@ pub struct Fulfiller<P: Prover<CpuProverComponents>, DB: Db> {
     request: PendingRequest,
     prover: P,
     db: Arc<DB>,
-    network_client: Arc<NetworkClient>,
+    fulfiller_signer: Arc<NetworkSigner>,
+    network_rpc_url: String,
     programs_s3_region: String,
+    hostname: String,
 }
 
 impl<DB: Db> Fulfiller<CudaProver, DB> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         pk: Option<Arc<SP1ProvingKey>>,
         request: PendingRequest,
         device_id: usize,
         db: Arc<DB>,
-        network_client: Arc<NetworkClient>,
+        fulfiller_signer: Arc<NetworkSigner>,
+        network_rpc_url: String,
         programs_s3_region: String,
+        hostname: String,
     ) -> Self {
         let port = 3000 + device_id;
         let prover = ProverClient::builder()
@@ -42,8 +55,10 @@ impl<DB: Db> Fulfiller<CudaProver, DB> {
             request,
             prover,
             db,
-            network_client,
+            fulfiller_signer,
+            network_rpc_url,
             programs_s3_region,
+            hostname,
         }
     }
 }
@@ -54,8 +69,10 @@ impl<DB: Db> Fulfiller<sp1_sdk::CpuProver, DB> {
         pk: Option<Arc<SP1ProvingKey>>,
         request: PendingRequest,
         db: Arc<DB>,
-        network_client: Arc<NetworkClient>,
+        fulfiller_signer: Arc<NetworkSigner>,
+        network_rpc_url: String,
         programs_s3_region: String,
+        hostname: String,
     ) -> Self {
         let prover = ProverClient::builder().mock().build();
         Self {
@@ -63,33 +80,36 @@ impl<DB: Db> Fulfiller<sp1_sdk::CpuProver, DB> {
             request,
             prover,
             db,
-            network_client,
+            fulfiller_signer,
+            network_rpc_url,
             programs_s3_region,
+            hostname,
         }
     }
 }
 
 impl<P: Prover<CpuProverComponents>, DB: Db> Fulfiller<P, DB> {
-    pub async fn process(self) -> Result<SP1ProofWithPublicValues, UnfulfillableRequestReason> {
+    pub async fn process(self) -> Result<()> {
         let prover = self.prover.inner();
         let context = SP1Context::builder()
             .max_cycles(self.request.cycle_limit)
             .calculate_gas(true)
             .build();
+        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
 
         let pk = match self.pk {
             Some(pk) => pk,
             None => {
                 tracing::debug!("Setup {}", self.request.id);
 
-                let program = self
-                    .network_client
-                    .get_program(self.request.vk_hash)
-                    .await
-                    .map_err(|err| UnfulfillableRequestReason::Other(err.to_string()))?
-                    .ok_or(UnfulfillableRequestReason::ProgramNotFound)?
+                let program = network_client
+                    .get_program(GetProgramRequest {
+                        vk_hash: self.request.vk_hash.to_vec(),
+                    })
+                    .await?
+                    .into_inner()
                     .program
-                    .ok_or(UnfulfillableRequestReason::ProgramNotRegistered)?;
+                    .ok_or(anyhow!("Program not registered"))?;
                 let artifact = Artifact {
                     id: extract_artifact_name(&program.program_uri).unwrap(),
                     label: String::from(""),
@@ -106,9 +126,9 @@ impl<P: Prover<CpuProverComponents>, DB: Db> Fulfiller<P, DB> {
 
                 let (pk, _) = self.prover.setup(&elf);
                 let pk = Arc::new(pk);
-                let db = self.db.clone();
 
-                db.insert_proving_key(self.request.vk_hash.clone(), pk.clone())
+                self.db
+                    .insert_proving_key(self.request.vk_hash, pk.clone())
                     .await;
 
                 pk
@@ -116,17 +136,109 @@ impl<P: Prover<CpuProverComponents>, DB: Db> Fulfiller<P, DB> {
         };
 
         tracing::debug!("Executing {}", self.request.id);
-        let (_, _, report) = prover.execute(&pk.elf, &self.request.stdin, context)?;
+        match prover.execute(&pk.elf, &self.request.stdin, context) {
+            Ok((_, _, report)) => {
+                if let Some(used_gas) = report.gas
+                    && used_gas > self.request.gas_limit
+                {
+                    self.db
+                        .update_request(self.request.id, |r| {
+                            r.execution_status = ExecutionStatus::Unexecutable;
+                        })
+                        .await;
 
-        if let Some(used_gas) = report.gas
-            && used_gas > self.request.gas_limit
-        {
-            return Err(UnfulfillableRequestReason::GasLimitExceeded);
+                    bail!("Gas limit exceeded");
+                } else {
+                    self.db
+                        .update_request(self.request.id, |r| {
+                            r.execution_status = ExecutionStatus::Executed;
+                        })
+                        .await;
+                }
+            }
+            Err(err) => {
+                self.db
+                    .update_request(self.request.id, |r| {
+                        r.execution_status = ExecutionStatus::Unexecutable;
+                    })
+                    .await;
+
+                bail!("{err}");
+            }
         }
 
         tracing::debug!("Start proving {}", self.request.id);
-        self.prover
-            .prove(&pk, &self.request.stdin, self.request.mode)
-            .map_err(|err| UnfulfillableRequestReason::ProvingError(err.to_string()))
+        let proof = self
+            .prover
+            .prove(&pk, &self.request.stdin, self.request.mode);
+
+        let nonce = network_client
+            .get_nonce(GetNonceRequest {
+                address: self.fulfiller_signer.address().to_vec(),
+            })
+            .await?
+            .into_inner();
+
+        match proof {
+            Ok(proof) => {
+                tracing::info!("Proving {} sucessful!", self.request.id);
+                let encoded_proof = bincode::serialize(&proof)?;
+                let body = FulfillProofRequestBody {
+                    nonce: nonce.nonce,
+                    request_id: self.request.id.to_vec(),
+                    proof: encoded_proof,
+                    reserved_metadata: None,
+                };
+
+                // fulfill the proof on the prover network
+                let fulfill_resp = network_client
+                    .fulfill_proof(FulfillProofRequest {
+                        format: MessageFormat::Binary.into(),
+                        signature: body.sign(&self.fulfiller_signer).await?,
+                        body: Some(body),
+                    })
+                    .await?
+                    .into_inner();
+
+                let proof_key = Key::generate(&ArtifactType::Proof);
+
+                self.db
+                    .update_request(self.request.id, |r| {
+                        r.fulfillment_status = FulfillmentStatus::Fulfilled;
+                        r.fulfill_tx_hash = Some(fulfill_resp.tx_hash.clone());
+                        r.proof_uri = Some(proof_key.as_presigned_url(&self.hostname));
+                    })
+                    .await;
+
+                self.db.insert_artifact(proof_key, proof.into()).await;
+            }
+            Err(err) => {
+                tracing::error!("Failed to prove {}: {err}", self.request.id);
+
+                let body = FailFulfillmentRequestBody {
+                    nonce: nonce.nonce,
+                    request_id: self.request.id.to_vec(),
+                    error: None,
+                };
+
+                let fail_fulfill_resp = network_client
+                    .fail_fulfillment(FailFulfillmentRequest {
+                        format: MessageFormat::Binary.into(),
+                        signature: body.sign(&self.fulfiller_signer).await?,
+                        body: Some(body),
+                    })
+                    .await?
+                    .into_inner();
+
+                self.db
+                    .update_request(self.request.id, |r| {
+                        r.fulfillment_status = FulfillmentStatus::Unfulfillable;
+                        r.fulfill_tx_hash = Some(fail_fulfill_resp.tx_hash.clone());
+                    })
+                    .await;
+            }
+        }
+
+        Ok(())
     }
 }

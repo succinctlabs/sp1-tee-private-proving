@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
 use alloy_primitives::B256;
-use sp1_core_executor::ExecutionError;
 use sp1_sdk::{
-    SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin,
-    network::proto::types::{ProofMode, RequestProofRequestBody},
+    SP1ProofMode, SP1Stdin,
+    network::proto::types::{
+        ExecutionStatus, FulfillmentStatus, ProofMode, RequestProofRequestBody,
+    },
 };
-use thiserror::Error;
-
-use crate::types::Key;
 
 #[derive(Debug, Clone)]
 pub struct PendingRequest {
@@ -48,36 +46,23 @@ impl PendingRequest {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum UnfulfillableRequestReason {
-    #[error("Program not registered")]
-    ProgramNotRegistered,
-
-    #[error("Program not found")]
-    ProgramNotFound,
-
-    #[error("Deadline exceeded")]
-    DeadlineExceeded,
-
-    #[error("Gas limit exceeded")]
-    GasLimitExceeded,
-
-    #[error("Execution error: {0}")]
-    ExecutionError(#[from] ExecutionError),
-
-    #[error("Proving error: {0}")]
-    ProvingError(String),
-
-    #[error("Bincode error: {0}")]
-    Bincode(#[from] Box<bincode::ErrorKind>),
-
-    #[error("Unknown error: {0}")]
-    Other(String),
+#[derive(Debug, Clone)]
+pub struct ProofRequest {
+    pub request_tx_hash: Vec<u8>,
+    pub execution_status: ExecutionStatus,
+    pub fulfillment_status: FulfillmentStatus,
+    pub proof_uri: Option<String>,
+    pub fulfill_tx_hash: Option<Vec<u8>>,
 }
 
-#[derive(Debug)]
-pub enum Request {
-    Assigned,
-    Fulfilled { proof_key: Key },
-    Unfulfillable { reason: UnfulfillableRequestReason },
+impl ProofRequest {
+    pub fn new(request_tx_hash: Vec<u8>) -> Self {
+        Self {
+            request_tx_hash,
+            execution_status: ExecutionStatus::Unexecuted,
+            fulfillment_status: FulfillmentStatus::Requested,
+            proof_uri: None,
+            fulfill_tx_hash: None,
+        }
+    }
 }

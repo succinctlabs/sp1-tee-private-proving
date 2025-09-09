@@ -5,32 +5,24 @@ use anyhow::Result;
 use futures::StreamExt;
 use sp1_sdk::{
     NetworkSigner,
-    network::{
-        NetworkClient,
-        proto::{
-            artifact::ArtifactType,
-            network::prover_network_client::ProverNetworkClient,
-            types::{
-                CreateProgramRequest, CreateProgramResponse, FulfillmentStatus, GetNonceRequest,
-                GetNonceResponse, GetProgramRequest, GetProgramResponse,
-                GetProofRequestStatusRequest, GetProofRequestStatusResponse, ProofMode,
-                RequestProofRequest, RequestProofResponse, RequestProofResponseBody,
-            },
-        },
+    network::proto::types::{
+        CreateProgramRequest, CreateProgramResponse, FulfillmentStatus, GetNonceRequest,
+        GetNonceResponse, GetProgramRequest, GetProgramResponse, GetProofRequestStatusRequest,
+        GetProofRequestStatusResponse, ProofMode, RequestProofRequest, RequestProofResponse,
+        RequestProofResponseBody,
     },
 };
-use tonic::{Request, Response, Status, transport::Channel};
+use tonic::{Request, Response, Status};
 
 use crate::{
     db::Db,
     fulfiller::Fulfiller,
-    types::{Key, PendingRequest, Request as ProofRequest, prover_network_server::ProverNetwork},
-    utils::configure_endpoint,
+    types::{Key, PendingRequest, prover_network_server::ProverNetwork},
+    utils::prover_network_client,
 };
 
 #[derive(Debug, Clone)]
 pub struct DefaultPrivateProverServer<DB: Db> {
-    hostname: String,
     network_rpc_url: String,
     db: Arc<DB>,
 }
@@ -49,19 +41,14 @@ impl<DB: Db> DefaultPrivateProverServer<DB> {
             network_rpc_url.clone(),
             network_private_key,
             programs_s3_region,
+            hostname,
             worker_count,
         );
 
         Self {
-            hostname,
             network_rpc_url,
             db,
         }
-    }
-
-    async fn prover_network_client(&self) -> Result<ProverNetworkClient<Channel>> {
-        let channel = configure_endpoint(&self.network_rpc_url)?.connect().await?;
-        Ok(ProverNetworkClient::new(channel))
     }
 }
 
@@ -72,7 +59,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         request: Request<CreateProgramRequest>,
     ) -> Result<Response<CreateProgramResponse>, Status> {
         let request = request.into_inner();
-        let mut network_client = self.prover_network_client().await.unwrap();
+        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
         let response_from_network = network_client.create_program(request).await?;
 
         Ok(response_from_network)
@@ -83,7 +70,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         request: Request<GetProgramRequest>,
     ) -> Result<Response<GetProgramResponse>, Status> {
         let request = request.into_inner();
-        let mut network_client = self.prover_network_client().await.unwrap();
+        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
 
         network_client.get_program(request).await
     }
@@ -92,7 +79,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         &self,
         request: Request<GetNonceRequest>,
     ) -> Result<Response<GetNonceResponse>, Status> {
-        let mut network_client = self.prover_network_client().await.unwrap();
+        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
 
         network_client.get_nonce(request).await
     }
@@ -108,7 +95,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
             .clone()
             .ok_or_else(|| Status::invalid_argument("missing request body"))?;
 
-        let mut network_client = self.prover_network_client().await.unwrap();
+        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
 
         tracing::debug!("Forward proof request to the network");
         let response_from_network = network_client.request_proof(request).await?.into_inner();
@@ -129,12 +116,16 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
 
         let request = PendingRequest::from_request_body(&request_body, request_id, mode, stdin);
         let response = RequestProofResponse {
-            tx_hash: B256::random().to_vec(), // TODO: Impl
+            tx_hash: response_from_network.tx_hash.clone(),
             body: Some(RequestProofResponseBody {
                 request_id: request.id.to_vec(),
             }),
         };
-        self.db.insert_request(request).await;
+
+        self.db.insert_pending_request(request).await;
+        self.db
+            .insert_request(request_id, response_from_network.tx_hash)
+            .await;
 
         Ok(Response::new(response))
     }
@@ -150,26 +141,13 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
             .await
             .ok_or_else(|| Status::not_found("The request hasn't been requested"))?;
 
-        let fulfillment_status = match request.as_ref() {
-            ProofRequest::Assigned => FulfillmentStatus::Assigned,
-            ProofRequest::Fulfilled { .. } => FulfillmentStatus::Fulfilled,
-            ProofRequest::Unfulfillable { .. } => FulfillmentStatus::Unfulfillable,
-        };
-
-        let proof_uri = match request.as_ref() {
-            ProofRequest::Fulfilled { proof_key } => {
-                Some(proof_key.as_presigned_url(&self.hostname))
-            }
-            _ => None,
-        };
-
         let response = GetProofRequestStatusResponse {
-            fulfillment_status: fulfillment_status.into(),
-            execution_status: 0,
-            request_tx_hash: vec![],
+            fulfillment_status: request.fulfillment_status as i32,
+            execution_status: request.execution_status as i32,
+            request_tx_hash: request.request_tx_hash,
             deadline: u64::MAX,
             fulfill_tx_hash: None,
-            proof_uri,
+            proof_uri: request.proof_uri,
             public_values_hash: None,
             proof_public_uri: None,
         };
@@ -183,60 +161,62 @@ fn spawn_workers<DB: Db>(
     network_rpc_url: String,
     network_private_key: String,
     programs_s3_region: String,
+    hostname: String,
     worker_count: usize,
 ) {
     tokio::spawn(async move {
         let mut pending_requests = pin!(db.get_requests_to_process_stream());
-        let network_client = NetworkClient::new(
-            NetworkSigner::local(&network_private_key).unwrap(),
-            network_rpc_url,
-        );
-        let network_client = Arc::new(network_client);
+        let fulfiller_signer = NetworkSigner::local(&network_private_key).unwrap();
+        let fulfiller_signer = Arc::new(fulfiller_signer);
         let (tx, rx) = crossbeam::channel::unbounded::<PendingRequest>();
 
         for gpu_id in 0..worker_count {
             let db = db.clone();
             let rx = rx.clone();
-            let network_client = network_client.clone();
+            let fulfiller_signer = fulfiller_signer.clone();
+            let network_rpc_url = network_rpc_url.clone();
             let programs_s3_region = programs_s3_region.clone();
+            let hostname = hostname.clone();
 
             tokio::spawn(async move {
-                while let Ok(request) = rx.recv() {
-                    db.set_request_as_assigned(request.id).await;
+                while let Ok(pending_request) = rx.recv() {
+                    db.update_request(pending_request.id, |r| {
+                        r.fulfillment_status = FulfillmentStatus::Assigned;
+                    })
+                    .await;
 
-                    tracing::debug!("Get program {}", request.vk_hash);
-                    let pk = db.get_proving_key(request.vk_hash).await;
+                    tracing::debug!("Get program {}", pending_request.vk_hash);
+                    let pk = db.get_proving_key(pending_request.vk_hash).await;
 
                     #[cfg(not(feature = "mock"))]
                     let fulfiller = Fulfiller::new(
                         pk,
-                        request.clone(),
+                        pending_request.clone(),
                         gpu_id,
                         db.clone(),
-                        network_client.clone(),
+                        fulfiller_signer.clone(),
+                        network_rpc_url.clone(),
                         programs_s3_region.clone(),
+                        hostname.clone(),
                     );
 
                     #[cfg(feature = "mock")]
                     let fulfiller = Fulfiller::mock(
                         pk,
-                        request.clone(),
+                        pending_request.clone(),
                         db.clone(),
-                        network_client.clone(),
+                        fulfiller_signer.clone(),
+                        network_rpc_url.clone(),
                         programs_s3_region.clone(),
+                        hostname.clone(),
                     );
 
-                    match fulfiller.process().await {
-                        Ok(proof) => {
-                            tracing::info!("Proved {}", request.id);
-                            let key = Key::generate(&ArtifactType::Proof);
-                            db.insert_artifact(key.clone(), proof.into()).await;
-                            db.set_request_as_fulfilled(request.id, key).await;
-                        }
-                        Err(reason) => {
-                            tracing::error!("Failed to prove {}: {reason}", request.id);
-                            db.set_request_as_unfulfillable(request.id, reason).await;
-                        }
+                    if let Err(err) = fulfiller.process().await {
+                        tracing::error!("Error during proving {}: {err}", pending_request.id);
+                        db.update_request(pending_request.id, |r| {
+                            r.fulfillment_status = FulfillmentStatus::Unfulfillable;
+                        })
+                        .await;
                     }
                 }
             });

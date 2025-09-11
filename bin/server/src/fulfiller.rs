@@ -4,7 +4,8 @@ use anyhow::{Result, anyhow, bail};
 use futures::StreamExt;
 use sp1_prover::components::CpuProverComponents;
 use sp1_sdk::{
-    CudaProver, NetworkSigner, Prover, ProverClient, SP1Context, SP1ProvingKey,
+    CudaProver, NetworkSigner, Prover, ProverClient, SP1Context, SP1Prover, SP1ProvingKey,
+    SP1Stdin,
     network::proto::{
         artifact::ArtifactType,
         types::{
@@ -83,6 +84,8 @@ pub fn spawn_workers<DB: Db>(
                             r.fulfillment_status = FulfillmentStatus::Unfulfillable;
                         })
                         .await;
+                    } else {
+                        tracing::info!("Proving {} sucessful!", pending_request.id);
                     }
                 }
             });
@@ -211,36 +214,35 @@ impl<P: Prover<CpuProverComponents>, DB: Db> Fulfiller<P, DB> {
         };
 
         tracing::debug!("Executing {}", self.request.id);
-        match prover.execute(&pk.elf, &self.request.stdin, context) {
-            Ok((_, _, report)) => {
-                if let Some(used_gas) = report.gas
-                    && used_gas > self.request.gas_limit
-                {
-                    self.db
-                        .update_request(self.request.id, |r| {
-                            r.execution_status = ExecutionStatus::Unexecutable;
-                        })
-                        .await;
+        let (execution_result, _, gas_used) =
+            execute_program(&pk.elf, &self.request.stdin, prover, context);
 
-                    bail!("Gas limit exceeded");
+        let (execution_result, execution_status) = match execution_result {
+            Ok(_) => {
+                if let Some(gas_used) = gas_used
+                    && gas_used > self.request.gas_limit
+                {
+                    (
+                        Err(anyhow!("Gas limit excedeed")),
+                        ExecutionStatus::Unexecutable,
+                    )
                 } else {
-                    self.db
-                        .update_request(self.request.id, |r| {
-                            r.execution_status = ExecutionStatus::Executed;
-                        })
-                        .await;
+                    (Ok(()), ExecutionStatus::Executed)
                 }
             }
-            Err(err) => {
-                self.db
-                    .update_request(self.request.id, |r| {
-                        r.execution_status = ExecutionStatus::Unexecutable;
-                    })
-                    .await;
+            Err(err) => (Err(anyhow!("{err}")), ExecutionStatus::Unexecutable),
+        };
 
-                bail!("{err}");
-            }
-        }
+        self.db
+            .update_request(self.request.id, |r| {
+                r.execution_status = execution_status;
+            })
+            .await;
+
+        // Return early if the execution failed
+        if let Err(err) = execution_result {
+            bail!("{err}")
+        };
 
         tracing::debug!("Start proving {}", self.request.id);
         let proof = self
@@ -256,8 +258,14 @@ impl<P: Prover<CpuProverComponents>, DB: Db> Fulfiller<P, DB> {
 
         match proof {
             Ok(proof) => {
-                tracing::info!("Proving {} sucessful!", self.request.id);
+                tracing::debug!(?self.request.id, "Proof generated");
+                let proof_key = Key::generate(&ArtifactType::Proof);
                 let encoded_proof = bincode::serialize(&proof)?;
+
+                self.db
+                    .insert_artifact(proof_key.clone(), proof.into())
+                    .await;
+
                 let body = FulfillProofRequestBody {
                     nonce: nonce.nonce,
                     request_id: self.request.id.to_vec(),
@@ -275,8 +283,6 @@ impl<P: Prover<CpuProverComponents>, DB: Db> Fulfiller<P, DB> {
                     .await?
                     .into_inner();
 
-                let proof_key = Key::generate(&ArtifactType::Proof);
-
                 self.db
                     .update_request(self.request.id, |r| {
                         r.fulfillment_status = FulfillmentStatus::Fulfilled;
@@ -285,7 +291,7 @@ impl<P: Prover<CpuProverComponents>, DB: Db> Fulfiller<P, DB> {
                     })
                     .await;
 
-                self.db.insert_artifact(proof_key, proof.into()).await;
+                tracing::debug!(?self.request.id, "Proof fullfilled");
             }
             Err(err) => {
                 tracing::error!("Failed to prove {}: {err}", self.request.id);
@@ -306,6 +312,8 @@ impl<P: Prover<CpuProverComponents>, DB: Db> Fulfiller<P, DB> {
                     .await?
                     .into_inner();
 
+                tracing::debug!(?self.request.id, "Proof marked as unfulfillable");
+
                 self.db
                     .update_request(self.request.id, |r| {
                         r.fulfillment_status = FulfillmentStatus::Unfulfillable;
@@ -316,5 +324,17 @@ impl<P: Prover<CpuProverComponents>, DB: Db> Fulfiller<P, DB> {
         }
 
         Ok(())
+    }
+}
+
+fn execute_program<'a>(
+    elf: &[u8],
+    stdin: &SP1Stdin,
+    prover: &'a SP1Prover,
+    context: SP1Context<'a>,
+) -> (Result<()>, Option<u64>, Option<u64>) {
+    match prover.execute(elf, stdin, context) {
+        Ok((_, _, report)) => (Ok(()), Some(report.total_instruction_count()), report.gas),
+        Err(err) => (Err(anyhow!("{err}")), None, None),
     }
 }

@@ -26,7 +26,7 @@ tracing = "0.1.41"
 thiserror = "2.0.12"
 
 # SP1
-sp1-sdk = { version = "5.0.8", features = ["network"] }
+sp1-sdk = { version = "5.0.8", features = ["network", "native-gnark"] }
 sp1-prover = { version = "5.0.8" }
 sp1-core-executor = { version = "5.0.8" }
 spn-artifacts = { git = "https://github.com/succinctlabs/network" }

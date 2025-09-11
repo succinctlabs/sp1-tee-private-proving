@@ -22,7 +22,6 @@ pub async fn upload_artifact(
     State(db): State<Arc<InMemoryDb>>,
     body: Body,
 ) -> StatusCode {
-    tracing::info!("start upload artifact");
     let ty = ArtifactType::from_str_name(&ty.to_uppercase()).unwrap_or_default();
     let stream = body.into_data_stream().map_err(std::io::Error::other);
     let async_reader = StreamReader::new(stream);
@@ -81,7 +80,6 @@ async fn deserialize<R: Read + Send + 'static, T: DeserializeOwned + Send + 'sta
             return;
         }
 
-        tracing::info!("start deserialize");
         let artifact = bincode::deserialize::<T>(&buf).map_err(|err| anyhow!("{err}"));
 
         let _ = tx.send(artifact);

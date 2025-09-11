@@ -17,6 +17,7 @@ lru.workspace = true
 mti.workspace = true
 prost.workspace = true
 prost-types.workspace = true
+rustls.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

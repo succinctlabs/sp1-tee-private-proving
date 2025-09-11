@@ -5,6 +5,7 @@ use axum::{
     routing::{get, put},
 };
 use clap::Parser;
+use rustls::crypto::aws_lc_rs;
 use sp1_sdk::network::proto::artifact::artifact_store_server::ArtifactStoreServer;
 use tonic::service::Routes;
 use tracing::info;
@@ -29,6 +30,7 @@ mod utils;
 async fn main() {
     dotenv::dotenv().ok();
     sp1_sdk::utils::setup_logger();
+    aws_lc_rs::default_provider().install_default().unwrap();
 
     let args = Args::parse();
 
@@ -64,7 +66,6 @@ async fn main() {
         .with_state(db)
         .merge(grpc_routes);
 
-    // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", args.port))
         .await
         .unwrap();

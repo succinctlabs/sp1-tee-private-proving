@@ -1,0 +1,29 @@
+[package]
+name = "sp1-tee-private-fulfiller"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sp1-tee-private-types.workspace = true
+sp1-tee-private-utils.workspace = true
+
+sp1-sdk.workspace = true
+sp1-prover.workspace = true
+spn-artifacts.workspace = true
+spn-utils.workspace = true
+
+anyhow.workspace = true
+bincode.workspace = true
+clap.workspace = true
+dotenv.workspace = true
+crossbeam.workspace = true
+futures.workspace = true
+lru.workspace = true
+reqwest.workspace = true
+rustls.workspace = true
+tokio.workspace = true
+tonic.workspace = true
+tracing.workspace = true
+
+[features]
+mock = []

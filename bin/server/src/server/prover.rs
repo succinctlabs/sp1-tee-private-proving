@@ -4,22 +4,21 @@ use alloy_primitives::B256;
 use anyhow::Result;
 use sp1_sdk::network::proto::types::{
     CreateProgramRequest, CreateProgramResponse, GetNonceRequest, GetNonceResponse,
-    GetProgramRequest, GetProgramResponse, GetProofRequestStatusRequest,
-    GetProofRequestStatusResponse, ProofMode, RequestProofRequest, RequestProofResponse,
-    RequestProofResponseBody,
+    GetProgramRequest, GetProgramResponse, GetProofRequestDetailsRequest,
+    GetProofRequestStatusRequest, GetProofRequestStatusResponse, ProofRequest, RequestProofRequest,
+    RequestProofResponse, RequestProofResponseBody,
 };
+use sp1_tee_private_types::prover_network_server::ProverNetwork;
+use sp1_tee_private_utils::prover_network_client;
 use tonic::{Request, Response, Status};
 
-use crate::{
-    db::Db,
-    fulfiller::spawn_workers,
-    types::{Key, PendingRequest, prover_network_server::ProverNetwork},
-    utils::prover_network_client,
-};
+use crate::db::Db;
 
 #[derive(Debug, Clone)]
 pub struct DefaultPrivateProverServer<DB: Db> {
+    hostname: String,
     network_rpc_url: String,
+    artifacts_port: u16,
     db: Arc<DB>,
 }
 
@@ -27,22 +26,13 @@ impl<DB: Db> DefaultPrivateProverServer<DB> {
     pub fn new(
         hostname: String,
         network_rpc_url: String,
-        network_private_key: String,
-        programs_s3_region: String,
+        artifacts_port: u16,
         db: Arc<DB>,
-        worker_count: usize,
     ) -> Self {
-        spawn_workers(
-            db.clone(),
-            network_rpc_url.clone(),
-            network_private_key,
-            programs_s3_region,
-            hostname,
-            worker_count,
-        );
-
         Self {
+            hostname,
             network_rpc_url,
+            artifacts_port,
             db,
         }
     }
@@ -94,11 +84,6 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
     ) -> Result<Response<RequestProofResponse>, Status> {
         tracing::debug!("Start request proof");
         let request = request.into_inner();
-        let request_body = request
-            .body
-            .clone()
-            .ok_or_else(|| Status::invalid_argument("missing request body"))?;
-
         let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
 
         tracing::debug!("Forwarding proof request to the network");
@@ -108,35 +93,57 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
             .clone()
             .ok_or_else(|| Status::invalid_argument("missing networs response body"))?;
 
-        let request_id = B256::from_slice(&response_body.request_id);
-        let mode = ProofMode::try_from(request_body.mode)
-            .map_err(|_| Status::invalid_argument("missing proof mode"))?;
-
-        let stdin = self
-            .db
-            .get_stdin(Key::from_uri(&request_body.stdin_uri))
-            .await
-            .ok_or_else(|| Status::invalid_argument("missing stdin"))?;
-
-        let pending_request =
-            PendingRequest::from_request_body(&request_body, request_id, mode, stdin);
         let response = RequestProofResponse {
             tx_hash: response_from_network.tx_hash.clone(),
             body: Some(RequestProofResponseBody {
-                request_id: response_body.request_id,
+                request_id: response_body.request_id.clone(),
             }),
         };
 
-        self.db.insert_pending_request(pending_request).await;
         self.db
-            .insert_request(
-                request_id,
-                response_from_network.tx_hash,
-                request_body.deadline,
-            )
+            .insert_request(response_body.request_id.clone())
             .await;
 
         Ok(Response::new(response))
+    }
+
+    async fn take_next_proof_request(
+        &self,
+        _: Request<()>,
+    ) -> Result<Response<ProofRequest>, Status> {
+        match self.db.pop_request().await {
+            Some(request_id) => {
+                let mut network_client =
+                    prover_network_client(&self.network_rpc_url).await.unwrap();
+
+                match network_client
+                    .get_proof_request_details(GetProofRequestDetailsRequest { request_id })
+                    .await?
+                    .into_inner()
+                    .request
+                {
+                    Some(mut proof_request) => {
+                        let request_id = B256::from_slice(&proof_request.request_id);
+                        tracing::debug!(?request_id, "Pop request");
+
+                        // Override stdin URL
+                        proof_request.stdin_uri = proof_request.stdin_uri.replace(
+                            &self.hostname,
+                            #[cfg(feature = "local")]
+                            &format!("http://localhost:{}", self.artifacts_port),
+                            #[cfg(not(feature = "local"))]
+                            &format!("http://server:{}", self.artifacts_port),
+                        );
+
+                        Ok(Response::new(proof_request))
+                    }
+                    None => Err(Status::not_found(
+                        "Proof request not present in the network",
+                    )),
+                }
+            }
+            None => Err(Status::not_found("No proof requests in the queue")),
+        }
     }
 
     // Retrieve the proof request status from the enclave DB.
@@ -144,24 +151,8 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         &self,
         request: Request<GetProofRequestStatusRequest>,
     ) -> Result<Response<GetProofRequestStatusResponse>, Status> {
-        let request_id = request.into_inner().request_id;
-        let request = self
-            .db
-            .get_request(&request_id)
-            .await
-            .ok_or_else(|| Status::not_found("The request hasn't been requested"))?;
+        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
 
-        let response = GetProofRequestStatusResponse {
-            fulfillment_status: request.fulfillment_status as i32,
-            execution_status: request.execution_status as i32,
-            request_tx_hash: request.request_tx_hash,
-            deadline: request.deadline,
-            fulfill_tx_hash: request.fulfill_tx_hash,
-            proof_uri: request.proof_uri,
-            public_values_hash: None,
-            proof_public_uri: None,
-        };
-
-        Ok(Response::new(response))
+        network_client.get_proof_request_status(request).await
     }
 }

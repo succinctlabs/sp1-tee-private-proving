@@ -5,12 +5,14 @@ edition.workspace = true
 
 
 [dependencies]
+sp1-tee-private-types.workspace = true
+sp1-tee-private-utils.workspace = true
+
 alloy-primitives.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 bincode.workspace = true
 clap.workspace = true
-crossbeam.workspace = true
 dotenv.workspace = true
 futures.workspace = true
 lru.workspace = true
@@ -27,17 +29,11 @@ tonic.workspace = true
 
 
 sp1-sdk.workspace = true
-sp1-prover.workspace = true
 sp1-core-executor.workspace = true
-spn-artifacts.workspace = true
 
 
 async-stream = "0.3.6"
 dstack-sdk = { git = "https://github.com/Dstack-TEE/dstack.git" }
 
-[build-dependencies]
-prost-build.workspace = true
-tonic-build.workspace = true
-
 [features]
-mock = []
+local = []

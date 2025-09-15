@@ -435,7 +435,7 @@ dependencies = [
  "alloy-rlp",
  "alloy-serde 0.15.11",
  "alloy-sol-types",
- "itertools 0.14.0",
+ "itertools 0.13.0",
  "serde",
  "serde_json",
  "thiserror 2.0.14",
@@ -455,7 +455,7 @@ dependencies = [
  "alloy-rlp",
  "alloy-serde 1.0.28",
  "alloy-sol-types",
- "itertools 0.14.0",
+ "itertools 0.13.0",
  "serde",
  "serde_json",
  "serde_with",
@@ -1116,9 +1116,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-s3"
-version = "1.104.0"
+version = "1.105.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38c488cd6abb0ec9811c401894191932e941c5f91dc226043edacd0afa1634bc"
+checksum = "c99789e929b5e1d9a5aa3fa1d81317f3a789afc796141d11b0eaafd9d9f47e38"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -3858,15 +3858,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "itertools"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
-dependencies = [
- "either",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5123,7 +5114,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
 dependencies = [
  "heck 0.5.0",
- "itertools 0.14.0",
+ "itertools 0.13.0",
  "log",
  "multimap",
  "once_cell",
@@ -5143,7 +5134,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.14.0",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "syn 2.0.104",
@@ -6741,6 +6732,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp1-tee-private-fulfiller"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "clap",
+ "crossbeam",
+ "dotenv",
+ "futures",
+ "lru 0.16.0",
+ "reqwest",
+ "rustls 0.23.31",
+ "sp1-prover",
+ "sp1-sdk",
+ "sp1-tee-private-types",
+ "sp1-tee-private-utils",
+ "spn-artifacts",
+ "spn-utils",
+ "tokio",
+ "tonic",
+ "tracing",
+]
+
+[[package]]
 name = "sp1-tee-private-server"
 version = "0.0.1"
 dependencies = [
@@ -6750,27 +6765,47 @@ dependencies = [
  "axum 0.7.9",
  "bincode",
  "clap",
- "crossbeam",
  "dotenv",
  "dstack-sdk",
  "futures",
  "lru 0.16.0",
  "mti",
  "prost",
- "prost-build",
  "prost-types",
  "rustls 0.23.31",
  "serde",
  "sp1-core-executor",
- "sp1-prover",
  "sp1-sdk",
- "spn-artifacts",
+ "sp1-tee-private-types",
+ "sp1-tee-private-utils",
  "thiserror 2.0.14",
  "tokio",
  "tokio-util",
  "tonic",
- "tonic-build",
  "tracing",
+]
+
+[[package]]
+name = "sp1-tee-private-types"
+version = "0.0.1"
+dependencies = [
+ "prost-build",
+ "serde",
+ "sp1-sdk",
+ "tonic",
+ "tonic-build",
+]
+
+[[package]]
+name = "sp1-tee-private-utils"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "mti",
+ "prost",
+ "sp1-sdk",
+ "sp1-tee-private-types",
+ "tonic",
 ]
 
 [[package]]
@@ -6830,6 +6865,19 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "spn-utils"
+version = "0.1.0"
+source = "git+https://github.com/succinctlabs/network#55b632bb7496586eb5fb7986cd65e1cb3204a0b1"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "anyhow",
+ "serde",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -7449,6 +7497,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-serde"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "704b1aeb7be0d0a84fc9828cae51dab5970fee5088f83d1dd7ee6f6246fc6ff1"
+dependencies = [
+ "serde",
+ "tracing-core",
+]
+
+[[package]]
 name = "tracing-subscriber"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7458,12 +7516,15 @@ dependencies = [
  "nu-ansi-term",
  "once_cell",
  "regex",
+ "serde",
+ "serde_json",
  "sharded-slab",
  "smallvec",
  "thread_local",
  "tracing",
  "tracing-core",
  "tracing-log",
+ "tracing-serde",
 ]
 
 [[package]]

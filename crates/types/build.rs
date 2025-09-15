@@ -44,6 +44,15 @@ fn main() {
         )
         .method(
             tonic_build::manual::Method::builder()
+                .name("take_next_proof_request")
+                .route_name("TakeNextProofRequest")
+                .input_type("crate::Unit")
+                .output_type("sp1_sdk::network::proto::types::ProofRequest")
+                .codec_path("tonic::codec::ProstCodec")
+                .build(),
+        )
+        .method(
+            tonic_build::manual::Method::builder()
                 .name("get_proof_request_status")
                 .route_name("GetProofRequestStatus")
                 .input_type("sp1_sdk::network::proto::types::GetProofRequestStatusRequest")

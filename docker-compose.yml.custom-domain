@@ -1,12 +1,12 @@
 services:
   ingress:
-    image: public.ecr.aws/succinct-labs/aurelien-private-proving-test:ingress
+    image: kvin/dstack-ingress@sha256:b61d50360c7a4e5ab7d22f5ce87677714f3f64a65db34ee5eebcc54683950c89
     ports:
       - "443:443"
     environment:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
       - DOMAIN=leruaa-private.work
-      - GATEWAY_DOMAIN=_.dstack-gpu08.phala.network
+      - GATEWAY_DOMAIN=_.succinct.phala.network
       - CERTBOT_EMAIL=aurelien@succinct.xyz
       - SET_CAA=true
       - TARGET_ENDPOINT=grpc://server:8080
@@ -15,12 +15,25 @@ services:
       - cert-data:/etc/letsencrypt
     restart: unless-stopped
   server:
-    image: public.ecr.aws/succinct-labs/aurelien-private-proving-test:latest
+    image: public.ecr.aws/succinct-labs/aurelien-private-proving-test:server
     environment:
-      - HOSTNAME=https://leruaa-private.work:18364
-      - RUST_LOG=info
+      - HOSTNAME=https://leruaa-private.work
+      - NETWORK_RPC_URL=https://rpc.dev2.succinct.tools
+      - RUST_LOG=sp1_tee_private_server=debug
     ports:
       - "8080:8080"
+      - "8081:8081"
+    restart: unless-stopped
+  fulfiller:
+    image: public.ecr.aws/succinct-labs/aurelien-private-proving-test:fulfiller
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - NETWORK_RPC_URL=https://rpc.dev2.succinct.tools
+      - PRIVATE_SERVER_RPC_URL=http://server:8080
+      - NETWORK_PRIVATE_KEY=${NETWORK_PRIVATE_KEY}
+      - PROGRAMS_S3_REGION=us-east-2
+      - RUST_LOG=sp1_tee_private_fulfiller=debug
     depends_on:
       - moongate
     restart: unless-stopped

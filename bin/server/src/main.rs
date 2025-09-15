@@ -7,6 +7,7 @@ use axum::{
 use clap::Parser;
 use rustls::crypto::aws_lc_rs;
 use sp1_sdk::network::proto::artifact::artifact_store_server::ArtifactStoreServer;
+use sp1_tee_private_types::prover_network_server::ProverNetworkServer;
 use tonic::service::Routes;
 use tracing::info;
 
@@ -15,16 +16,12 @@ use crate::{
     cli::Args,
     db::InMemoryDb,
     server::{DefaultArtifactStoreServer, DefaultPrivateProverServer},
-    types::prover_network_server::ProverNetworkServer,
 };
 
 mod artifact_routes;
 mod cli;
 mod db;
-mod fulfiller;
 mod server;
-mod types;
-mod utils;
 
 #[tokio::main]
 async fn main() {
@@ -34,7 +31,7 @@ async fn main() {
 
     let args = Args::parse();
 
-    info!("Starting server on port {}...", args.port);
+    info!("Starting server on port {}...", args.server_port);
 
     let db = Arc::new(InMemoryDb::new());
 
@@ -43,10 +40,8 @@ async fn main() {
     routes_builder.add_service(ProverNetworkServer::new(DefaultPrivateProverServer::new(
         args.hostname.clone(),
         args.network_rpc_url.clone(),
-        args.network_private_key.clone(),
-        args.programs_s3_region.clone(),
+        args.artifacts_port,
         db.clone(),
-        args.worker_count,
     )));
 
     routes_builder.add_service(ArtifactStoreServer::new(
@@ -60,14 +55,29 @@ async fn main() {
 
     let grpc_routes = routes_builder.routes().into_axum_router();
 
-    let app = Router::new()
-        .route("/artifacts/:type/:key", put(upload_artifact))
-        .route("/artifacts/:type/:key", get(download_artifact))
-        .with_state(db)
+    let server = Router::new()
+        .route("/artifacts/stdin/:id", put(upload_artifact))
+        .with_state(db.clone())
         .merge(grpc_routes);
 
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", args.port))
+    let download_artifacts = Router::new()
+        .route("/artifacts/stdin/:id", get(download_artifact))
+        .with_state(db);
+
+    let server_listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", args.server_port))
         .await
         .unwrap();
-    axum::serve(listener, app).await.unwrap();
+
+    let artifacts_listener =
+        tokio::net::TcpListener::bind(format!("0.0.0.0:{}", args.artifacts_port))
+            .await
+            .unwrap();
+
+    let (server_result, artifacts_result) = tokio::join!(
+        axum::serve(server_listener, server),
+        axum::serve(artifacts_listener, download_artifacts)
+    );
+
+    server_result.unwrap();
+    artifacts_result.unwrap();
 }

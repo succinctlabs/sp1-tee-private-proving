@@ -1,0 +1,14 @@
+[package]
+name = "sp1-tee-private-utils"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sp1-tee-private-types.workspace = true
+
+sp1-sdk.workspace = true
+
+anyhow.workspace = true
+mti.workspace = true
+prost.workspace = true
+tonic.workspace = true

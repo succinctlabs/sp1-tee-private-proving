@@ -1,19 +1,14 @@
 use std::time::Duration;
 
-use prost::Message;
-use sp1_sdk::{NetworkSigner, network::proto::network::prover_network_client::ProverNetworkClient};
+use sp1_sdk::network::proto::network::prover_network_client::ProverNetworkClient;
+use sp1_tee_private_types::prover_network_client::ProverNetworkClient as PrivateNetworkClient;
 use tonic::transport::{Channel, ClientTlsConfig, Endpoint, Error};
 
-pub trait Signable: Message {
-    async fn sign(&self, signer: &NetworkSigner) -> anyhow::Result<Vec<u8>>;
-}
+mod artifacts;
+pub use artifacts::{generate_id, presigned_url};
 
-impl<T: Message> Signable for T {
-    async fn sign(&self, signer: &NetworkSigner) -> anyhow::Result<Vec<u8>> {
-        let signature = signer.sign_message(self.encode_to_vec().as_slice()).await?;
-        Ok(signature.as_bytes().to_vec())
-    }
-}
+mod signable;
+pub use signable::Signable;
 
 /// Configures the endpoint for the gRPC client.
 ///
@@ -40,4 +35,9 @@ pub fn configure_endpoint(addr: &str) -> Result<Endpoint, Error> {
 pub async fn prover_network_client(rpc_url: &str) -> Result<ProverNetworkClient<Channel>, Error> {
     let channel = configure_endpoint(rpc_url)?.connect().await?;
     Ok(ProverNetworkClient::new(channel))
+}
+
+pub async fn private_network_client(rpc_url: &str) -> Result<PrivateNetworkClient<Channel>, Error> {
+    let channel = configure_endpoint(rpc_url)?.connect().await?;
+    Ok(PrivateNetworkClient::new(channel))
 }

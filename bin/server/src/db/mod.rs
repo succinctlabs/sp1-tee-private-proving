@@ -1,77 +1,21 @@
 use std::sync::Arc;
 
-use alloy_primitives::B256;
-use futures::Stream;
-use sp1_sdk::{ProofFromNetwork, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin};
 use tonic::async_trait;
-
-use crate::types::{Key, PendingRequest, ProofRequest};
 
 mod in_memory;
 pub use in_memory::InMemoryDb;
 
 #[async_trait]
 pub trait Db: Send + Sync + 'static {
-    async fn insert_artifact_request(&self, key: Key);
+    async fn insert_artifact_request(&self, id: String);
 
-    async fn consume_artifact_request(&self, key: Key) -> bool;
+    async fn consume_artifact_request(&self, id: String) -> bool;
 
-    async fn insert_artifact(&self, key: Key, artifact: Artifact);
+    async fn insert_stdin(&self, id: String, stdin: Vec<u8>);
 
-    async fn insert_proving_key(&self, vk_hash: B256, pk: Arc<SP1ProvingKey>);
+    async fn get_stdin(&self, id: &str) -> Option<Arc<Vec<u8>>>;
 
-    async fn get_proving_key(&self, vk_hash: B256) -> Option<Arc<SP1ProvingKey>>;
+    async fn insert_request(&self, request_id: Vec<u8>);
 
-    async fn get_stdin(&self, key: Key) -> Option<Arc<SP1Stdin>>;
-
-    async fn get_proof(&self, key: Key) -> Option<Arc<ProofFromNetwork>>;
-
-    async fn insert_pending_request(&self, request: PendingRequest);
-
-    async fn get_request(&self, id: &[u8]) -> Option<ProofRequest>;
-
-    async fn insert_request(&self, id: B256, tx_hash: Vec<u8>, deadline: u64);
-
-    async fn update_request<F: FnMut(&mut ProofRequest) + Send>(&self, id: B256, f: F);
-
-    fn get_requests_to_process_stream(&self) -> impl Stream<Item = PendingRequest> + Send + Sync;
-}
-
-#[derive(Clone)]
-pub enum Artifact {
-    Stdin(Arc<SP1Stdin>),
-    Proof(Arc<ProofFromNetwork>),
-}
-
-impl Artifact {
-    pub fn as_inputs(&self) -> Option<Arc<SP1Stdin>> {
-        match self {
-            Artifact::Stdin(stdin) => Some(stdin.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn as_proof(&self) -> Option<Arc<ProofFromNetwork>> {
-        match self {
-            Artifact::Proof(proof) => Some(proof.clone()),
-            _ => None,
-        }
-    }
-}
-
-impl From<SP1Stdin> for Artifact {
-    fn from(value: SP1Stdin) -> Self {
-        Self::Stdin(Arc::new(value))
-    }
-}
-
-impl From<SP1ProofWithPublicValues> for Artifact {
-    fn from(value: SP1ProofWithPublicValues) -> Self {
-        let proof = ProofFromNetwork {
-            proof: value.proof,
-            public_values: value.public_values,
-            sp1_version: value.sp1_version,
-        };
-        Self::Proof(Arc::new(proof))
-    }
+    async fn pop_request(&self) -> Option<Vec<u8>>;
 }

@@ -5,9 +5,10 @@ use sp1_sdk::network::proto::artifact::{
     ArtifactType, CreateArtifactRequest, CreateArtifactResponse,
     artifact_store_client::ArtifactStoreClient, artifact_store_server::ArtifactStore,
 };
+use sp1_tee_private_utils::{configure_endpoint, generate_id, presigned_url};
 use tonic::{Request, Response, Status, transport::Channel};
 
-use crate::{db::Db, types::Key, utils::configure_endpoint};
+use crate::db::Db;
 
 pub struct DefaultArtifactStoreServer<DB: Db> {
     hostname: String,
@@ -49,16 +50,16 @@ impl<DB: Db> ArtifactStore for DefaultArtifactStoreServer<DB> {
                 artifact_store.create_artifact(request).await
             }
             ArtifactType::Stdin => {
-                let key = Key::generate(&artifact_type);
-
-                let artifact_presigned_url = key.as_presigned_url(&self.hostname);
+                let id = generate_id();
+                let artifact_presigned_url =
+                    presigned_url(&self.hostname, ArtifactType::Stdin, &id);
 
                 tracing::info!("created presigned url: {}", artifact_presigned_url);
 
-                self.db.insert_artifact_request(key.clone()).await;
+                self.db.insert_artifact_request(id).await;
 
                 Ok(Response::new(CreateArtifactResponse {
-                    artifact_uri: key.as_uri(),
+                    artifact_uri: artifact_presigned_url.clone(),
                     artifact_presigned_url,
                 }))
             }

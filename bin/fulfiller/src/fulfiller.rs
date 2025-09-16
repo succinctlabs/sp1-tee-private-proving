@@ -48,7 +48,7 @@ pub async fn run(
                         let proof_request = proof_request.into_inner();
                         let request_id = B256::from_slice(&proof_request.request_id);
 
-                        #[cfg(not(feature = "mock"))]
+                        #[cfg(not(feature = "cpu"))]
                         let fulfiller = Fulfiller::new(
                             proof_request,
                             gpu_id,
@@ -58,7 +58,7 @@ pub async fn run(
                             programs_s3_region.clone(),
                         );
 
-                        #[cfg(feature = "mock")]
+                        #[cfg(feature = "cpu")]
                         let fulfiller = Fulfiller::mock(
                             proof_request,
                             proving_keys.clone(),
@@ -127,9 +127,9 @@ impl Fulfiller<CudaProver> {
     }
 }
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "cpu")]
 impl Fulfiller<sp1_sdk::CpuProver> {
-    pub fn mock(
+    pub fn cpu(
         proof_request: ProofRequest,
         proving_keys: Arc<Mutex<LruCache<Vec<u8>, Arc<SP1ProvingKey>>>>,
         fulfiller_signer: Arc<NetworkSigner>,

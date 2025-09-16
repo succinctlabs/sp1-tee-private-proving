@@ -26,4 +26,4 @@ tonic.workspace = true
 tracing.workspace = true
 
 [features]
-mock = []
+cpu = []

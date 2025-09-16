@@ -1,5 +1,6 @@
 use clap::Parser;
 use rustls::crypto::aws_lc_rs;
+use sp1_sdk::install::try_install_circuit_artifacts;
 use tokio::signal;
 use tracing::info;
 
@@ -17,6 +18,12 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     info!("Starting fulfiller...");
+
+    // Install circuits
+    let _ = try_install_circuit_artifacts("groth16");
+    let _ = try_install_circuit_artifacts("plonk");
+
+    info!("Fulfiller ready");
 
     run(
         args.network_rpc_url,

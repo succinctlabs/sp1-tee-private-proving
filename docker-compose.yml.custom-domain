@@ -5,7 +5,7 @@ services:
       - "443:443"
     environment:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
-      - DOMAIN=leruaa-private.work
+      - DOMAIN=sp1-lumiere.xyz
       - GATEWAY_DOMAIN=_.succinct.phala.network
       - CERTBOT_EMAIL=aurelien@succinct.xyz
       - SET_CAA=true
@@ -15,9 +15,9 @@ services:
       - cert-data:/etc/letsencrypt
     restart: unless-stopped
   server:
-    image: public.ecr.aws/succinct-labs/aurelien-private-proving-test:server
+    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:server
     environment:
-      - HOSTNAME=https://leruaa-private.work
+      - HOSTNAME=https://sp1-lumiere.xyz
       - NETWORK_RPC_URL=https://rpc.dev2.succinct.tools
       - RUST_LOG=sp1_tee_private_server=debug
     ports:
@@ -25,7 +25,7 @@ services:
       - "8081:8081"
     restart: unless-stopped
   fulfiller:
-    image: public.ecr.aws/succinct-labs/aurelien-private-proving-test:fulfiller
+    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:fulfiller
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}

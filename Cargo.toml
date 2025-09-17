@@ -31,9 +31,9 @@ sp1-tee-private-types = { path = "./crates/types" }
 sp1-tee-private-utils = { path = "./crates/utils" }
 
 # SP1
-sp1-sdk = { version = "5.0.8", features = ["network", "native-gnark"] }
-sp1-prover = { version = "5.0.8" }
-sp1-core-executor = { version = "5.0.8" }
+sp1-sdk = { version = "5.2.1", features = ["network", "native-gnark"] }
+sp1-prover = { version = "5.2.1" }
+sp1-core-executor = { version = "5.2.1" }
 spn-artifacts = { git = "https://github.com/succinctlabs/network" }
 spn-utils = { git = "https://github.com/succinctlabs/network" }
 

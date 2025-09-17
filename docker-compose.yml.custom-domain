@@ -18,8 +18,9 @@ services:
     image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:server
     environment:
       - HOSTNAME=https://sp1-lumiere.xyz
+      - NETWORK_RPC_URL=https://rpc.production.succinct.xyz
       - FULFILLER_PRIVATE_KEY=${FULFILLER_PRIVATE_KEY}
-      - RUST_LOG=sp1_tee_private_server=debug
+      - RUST_LOG=info
     ports:
       - "8080:8080"
       - "8081:8081"
@@ -29,11 +30,11 @@ services:
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - NETWORK_RPC_URL=https://rpc.dev2.succinct.tools
+      - NETWORK_RPC_URL=https://rpc.production.succinct.xyz
       - PRIVATE_SERVER_RPC_URL=http://server:8080
       - FULFILLER_PRIVATE_KEY=${FULFILLER_PRIVATE_KEY}
       - PROGRAMS_S3_REGION=us-east-2
-      - RUST_LOG=sp1_tee_private_fulfiller=debug
+      - RUST_LOG=info
     depends_on:
       - moongate
     restart: unless-stopped

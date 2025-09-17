@@ -7,9 +7,13 @@ pub struct Args {
     #[clap(long, env)]
     pub hostname: String,
 
-    /// The network private key.
+    /// The network RPC URL.
     #[clap(long, env)]
     pub network_rpc_url: String,
+
+    /// The fulfiller private key.
+    #[clap(long, env)]
+    pub fulfiller_private_key: String,
 
     /// The port for the server.
     #[clap(short, long, default_value = "8080")]

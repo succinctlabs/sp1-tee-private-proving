@@ -18,7 +18,7 @@ services:
     image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:server
     environment:
       - HOSTNAME=https://sp1-lumiere.xyz
-      - NETWORK_RPC_URL=https://rpc.dev2.succinct.tools
+      - FULFILLER_PRIVATE_KEY=${FULFILLER_PRIVATE_KEY}
       - RUST_LOG=sp1_tee_private_server=debug
     ports:
       - "8080:8080"
@@ -31,7 +31,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - NETWORK_RPC_URL=https://rpc.dev2.succinct.tools
       - PRIVATE_SERVER_RPC_URL=http://server:8080
-      - NETWORK_PRIVATE_KEY=${NETWORK_PRIVATE_KEY}
+      - FULFILLER_PRIVATE_KEY=${FULFILLER_PRIVATE_KEY}
       - PROGRAMS_S3_REGION=us-east-2
       - RUST_LOG=sp1_tee_private_fulfiller=debug
     depends_on:

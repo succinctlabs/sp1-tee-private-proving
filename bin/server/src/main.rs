@@ -40,6 +40,7 @@ async fn main() {
     routes_builder.add_service(ProverNetworkServer::new(DefaultPrivateProverServer::new(
         args.hostname.clone(),
         args.network_rpc_url.clone(),
+        args.fulfiller_private_key.clone(),
         args.artifacts_port,
         db.clone(),
     )));

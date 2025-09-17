@@ -5,6 +5,7 @@ use std::{
 };
 
 use lru::LruCache;
+use sp1_sdk::network::proto::types::ProofRequest;
 use tokio::sync::Mutex;
 use tonic::async_trait;
 
@@ -14,7 +15,7 @@ use crate::db::Db;
 pub struct InMemoryDb {
     artifact_requests: Mutex<HashSet<String>>,
     stdins: Mutex<LruCache<String, Arc<Vec<u8>>>>,
-    proof_requests: Mutex<VecDeque<Vec<u8>>>,
+    proof_requests: Mutex<VecDeque<ProofRequest>>,
 }
 
 impl InMemoryDb {
@@ -53,13 +54,13 @@ impl Db for InMemoryDb {
         stdins.get(id).cloned()
     }
 
-    async fn insert_request(&self, request_id: Vec<u8>) {
+    async fn insert_request(&self, proof_request: ProofRequest) {
         let mut proof_requests = self.proof_requests.lock().await;
 
-        proof_requests.push_back(request_id);
+        proof_requests.push_back(proof_request);
     }
 
-    async fn pop_request(&self) -> Option<Vec<u8>> {
+    async fn pop_request(&self) -> Option<ProofRequest> {
         let mut proof_requests = self.proof_requests.lock().await;
 
         proof_requests.pop_front()

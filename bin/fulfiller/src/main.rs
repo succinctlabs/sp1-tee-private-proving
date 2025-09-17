@@ -28,7 +28,7 @@ async fn main() -> anyhow::Result<()> {
     run(
         args.network_rpc_url,
         args.private_server_rpc_url,
-        args.network_private_key,
+        args.fulfiller_private_key,
         args.programs_s3_region,
         args.worker_count,
     )

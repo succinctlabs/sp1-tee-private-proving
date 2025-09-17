@@ -11,9 +11,9 @@ pub struct Args {
     #[clap(long, env)]
     pub private_server_rpc_url: String,
 
-    /// The netaork private key.
+    /// The fulfiller private key.
     #[clap(long, env)]
-    pub network_private_key: String,
+    pub fulfiller_private_key: String,
 
     /// The S3 region where programs are stored.
     #[clap(long, env)]

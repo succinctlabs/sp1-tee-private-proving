@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use sp1_sdk::network::proto::types::ProofRequest;
 use tonic::async_trait;
 
 mod in_memory;
@@ -15,7 +16,7 @@ pub trait Db: Send + Sync + 'static {
 
     async fn get_stdin(&self, id: &str) -> Option<Arc<Vec<u8>>>;
 
-    async fn insert_request(&self, request_id: Vec<u8>);
+    async fn insert_request(&self, proof_request: ProofRequest);
 
-    async fn pop_request(&self) -> Option<Vec<u8>>;
+    async fn pop_request(&self) -> Option<ProofRequest>;
 }

@@ -25,12 +25,12 @@ const REFRESH_INTERVAL_SEC: u64 = 3;
 pub async fn run(
     network_rpc_url: String,
     private_server_rpc_url: String,
-    network_private_key: String,
+    fulfiller_private_key: String,
     programs_s3_region: String,
     worker_count: usize,
 ) -> anyhow::Result<()> {
     let proving_keys = Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(32).unwrap())));
-    let fulfiller_signer = NetworkSigner::local(&network_private_key)?;
+    let fulfiller_signer = NetworkSigner::local(&fulfiller_private_key)?;
     let fulfiller_signer = Arc::new(fulfiller_signer);
     let private_client = private_network_client(&private_server_rpc_url).await?;
 

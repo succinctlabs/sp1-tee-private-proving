@@ -31,6 +31,7 @@ Phala also provides mechanisms for anyone to verify and attest that the domain i
 [`private()`]: https://docs.rs/sp1-sdk/latest/sp1_sdk/network/builder/struct.NetworkProverBuilder.html#method.private
 [`NetworkProverBuilder`]: https://docs.rs/sp1-sdk/latest/sp1_sdk/network/builder/struct.NetworkProverBuilder.html
 [Prover Network]: https://docs.succinct.xyz/docs/sp1/prover-network/quickstart
+[SP1]: https://docs.succinct.xyz/docs/sp1/introduction
 [Phala cloud]: https://docs.phala.com/phala-cloud/what-is/what-is-phala-cloud
 [dstack]: https://github.com/Dstack-TEE/dstack
 [Zero Trust TLS]: https://docs.phala.com/dstack/design-documents/whitepaper#zero-trust-tls-protocol

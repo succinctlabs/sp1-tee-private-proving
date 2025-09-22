@@ -55,7 +55,7 @@ To verify that the code running inside the TEE application at tee.sp1-lumiere.xy
 
 5. Retrieve the known [RTMR3] of the TEE application from the Phala Cloud API:
    ```
-   just show-digests
+   just get-attestation
    ```
 
 6. Compute the RTMR3 using the [RTMR3 Calculator], using the following values: 
@@ -63,7 +63,7 @@ To verify that the code running inside the TEE application at tee.sp1-lumiere.xy
    * The appId is `9b78cf840e16a8274e00474cdac4afdabc5eeb93`
    * The InstanceId is `f15edb2cc265a06a7cb524d0022bb13277eb177c`
 
-If both `RTMR3`s at step 5 and 6 are identical, you’ve proven that the `docker-compose.yml` file used to create the TEE Application is the same as the one in this repo contains the exact Docker images you built.
+If both `RTMR3`s at step 5 and 6 are identical, you’ve proven that the `docker-compose.yml` file used to create the TEE Application is the same as the one in this rep, and contains the exact Docker images you built.
 
 
 [`private()`]: https://docs.rs/sp1-sdk/latest/sp1_sdk/network/builder/struct.NetworkProverBuilder.html#method.private

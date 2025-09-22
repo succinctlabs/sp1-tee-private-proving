@@ -26,6 +26,12 @@ impl InMemoryDb {
             proof_requests: Mutex::new(VecDeque::new()),
         }
     }
+
+    pub async fn queued_proof_request_count(&self) -> usize {
+        let proof_requests = self.proof_requests.lock().await;
+
+        proof_requests.len()
+    }
 }
 
 #[async_trait]

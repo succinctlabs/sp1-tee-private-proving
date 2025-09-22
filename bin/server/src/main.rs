@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
 use axum::{
-    Router,
+    Json, Router,
+    extract::State,
     routing::{get, put},
 };
 use clap::Parser;
 use rustls::crypto::aws_lc_rs;
+use serde::{Deserialize, Serialize};
 use sp1_sdk::network::proto::artifact::artifact_store_server::ArtifactStoreServer;
 use sp1_tee_private_types::prover_network_server::ProverNetworkServer;
 use tonic::service::Routes;
@@ -58,6 +60,7 @@ async fn main() {
 
     let server = Router::new()
         .route("/artifacts/stdin/:id", put(upload_artifact))
+        .route("/health", get(health))
         .with_state(db.clone())
         .merge(grpc_routes);
 
@@ -81,4 +84,17 @@ async fn main() {
 
     server_result.unwrap();
     artifacts_result.unwrap();
+}
+
+async fn health(State(db): State<Arc<InMemoryDb>>) -> Json<HealthResponse> {
+    let response = HealthResponse {
+        queued_proof_request_count: db.queued_proof_request_count().await,
+    };
+
+    Json(response)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HealthResponse {
+    queued_proof_request_count: usize,
 }

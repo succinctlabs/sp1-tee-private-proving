@@ -28,7 +28,7 @@ In order to ensure the communications to the TEE enclaves are secure, the tee.sp
 
 Phala provides mechanisms for anyone to verify and attest that the domain is managed by the TEE application. The process is descibed in the [Domain Attestation] section in the Phala Cloud documentation, and [dstack-verifier], a tool to automate certificate verification is provided.
 
-### Application Integrity Verificaation
+### Application Integrity Verification
 
 Phala also provides mechanisms for anyone to verify that an application is running inside a genuine, secure TEE with the expected configuration and code, with Remote Attestation. You can learn more about it on the [Understanding Attestation] page in the Phala Cloud documentation.
 

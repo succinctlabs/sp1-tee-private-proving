@@ -5,7 +5,7 @@ services:
       - "443:443"
     environment:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
-      - DOMAIN=sp1-lumiere.xyz
+      - DOMAIN=tee.sp1-lumiere.xyz
       - GATEWAY_DOMAIN=_.succinct.phala.network
       - CERTBOT_EMAIL=aurelien@succinct.xyz
       - SET_CAA=true
@@ -17,7 +17,7 @@ services:
   server:
     image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:server
     environment:
-      - HOSTNAME=https://sp1-lumiere.xyz
+      - HOSTNAME=https://tee.sp1-lumiere.xyz
       - NETWORK_RPC_URL=https://rpc.production.succinct.xyz
       - FULFILLER_PRIVATE_KEY=${FULFILLER_PRIVATE_KEY}
       - RUST_LOG=info

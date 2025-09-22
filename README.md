@@ -20,11 +20,11 @@ let client = ProverClient::builder()
     .build();
 ```
 
-This will update the network prover client to send proof requests to a TEE application (via the sp1-lumiere.xyz domain) instead of sending them to the [Prover Network], allowing the proof inputs to remain private.
+This will update the network prover client to send proof requests to a TEE application (via the tee.sp1-lumiere.xyz domain) instead of sending them to the [Prover Network], allowing the proof inputs to remain private.
 
 ### Inputs Privacy Verification
 
-In order to ensure the communications to the TEE enclaves are secure, the sp1-lumiere.xyz domain certificates must be managed by the TEE application itself. This is achieved by the Phala [Zero Trust TLS] protocol.
+In order to ensure the communications to the TEE enclaves are secure, the tee.sp1-lumiere.xyz domain certificates must be managed by the TEE application itself. This is achieved by the Phala [Zero Trust TLS] protocol.
 
 Phala also provides mechanisms for anyone to verify and attest that the domain is managed by the TEE application. The process is descibed in the [Domain Attestation and Verification] section in the Phala Cloud documentation, and [dstack-verifier], a tool to automate certificate verification is provided.
 

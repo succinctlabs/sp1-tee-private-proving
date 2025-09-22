@@ -39,7 +39,7 @@ FROM rust-base AS server-builder
 COPY . .
 
 # Build the proposer binary
-RUN cargo build --release --bin sp1-tee-private-server
+RUN cargo build --release --bin sp1-tee-private-server --locked
 
 ###############################################################################
 #                                                                             #
@@ -52,7 +52,7 @@ FROM rust-base AS fulfiller-builder
 COPY . .
 
 # Build the proposer binary
-RUN cargo build --release --bin sp1-tee-private-fulfiller
+RUN cargo build --release --bin sp1-tee-private-fulfiller --locked
 
 ###############################################################################
 #                                                                             #

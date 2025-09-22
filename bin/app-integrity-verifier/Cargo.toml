@@ -1,0 +1,11 @@
+[package]
+name = "sp1-tee-app-integrity-verifier"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+reqwest = {workspace = true, features = ["json"] }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true

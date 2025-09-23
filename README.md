@@ -92,7 +92,7 @@ Anyone can easily verify that only the TEE controls the certificate, by followin
 
 #### Step 1: Get the Evidence Files
 
-```
+```bash
 # Download the evidence files (4 files total)
 curl -sO https://tee.sp1-lumiere.xyz/evidences/quote.json
 curl -sO https://tee.sp1-lumiere.xyz/evidences/sha256sum.txt
@@ -105,7 +105,7 @@ sha256sum -c sha256sum.txt
 
 Expected output:
 
-```
+```bash
 acme-account.json: OK
 cert.pem: OK
 ```
@@ -116,7 +116,7 @@ This means the files are authentic.
 
 Check that the evidence matches what’s actually being served:
 
-```
+```bash
 # Compare the served certificate with the evidence certificate
 echo | openssl s_client -connect tee.sp1-lumiere.xyz:443 2>/dev/null | \
   openssl x509 -fingerprint -sha256 -noout
@@ -127,7 +127,7 @@ Both fingerprints should be identical.
 
 Now verify the TEE hardware signed these files:
 
-```
+```bash
 # 1. Get the hash of sha256sum.txt
 sha256sum sha256sum.txt
 # Output: 3613a4229d6ac5a0f41829863abfffd09e5aed3d5db2816b294a8244ad34c096  sha256sum.txt
@@ -143,7 +143,7 @@ What this means: If you see the same 64-character hash in both outputs, Intel TD
 
 Make sure only this TEE can get certificates for your domain:
 
-```
+```bash
 # Get the TEE's ACME account number
 cat acme-account.json | jq -r '.uri'
 
@@ -163,25 +163,25 @@ To verify that the code running inside the TEE application at tee.sp1-lumiere.xy
 
 
 1. Clone the repository
-   ```
+   ```bash
    git clone https://github.com/succinctlabs/sp1-tee-private-proving.git
    cd sp1-tee-private-proving
    ```
 
 2. Build the Docker images for the server and the fulfiller
-   ```
+   ```bash
    just build-docker-images
    ```
 
 3. Display the Docker `server` and `fulfiller` images digests:
-   ```
+   ```bash
    just show-digests
    ```
 
 4. Verify the digests correspond to the ones used in the `docker-compose.yml` file at the root path of this repo
 
 5. Retrieve the known [RTMR3] of the TEE application from the Phala Cloud API:
-   ```
+   ```bash
    just get-attestation
    ```
 

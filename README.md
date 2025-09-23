@@ -22,6 +22,68 @@ let client = ProverClient::builder()
 
 This will update the network prover client to send proof requests to a TEE application (via the tee.sp1-lumiere.xyz domain) instead of sending them to the [Prover Network], allowing the proof inputs to remain private.
 
+### How It Works
+
+When enabling TEE Private Proving, the proof requests are not sent to the Succinct Private Network infra, but instead to a TEE application (hosted at tee.sp1-lumiere.xyz). The tee.sp1-lumiere.xyz TLS certificates are managed by the TEE application itself, allowing proof inputs to remain private.
+
+The workflow is the following:
+
+```mermaid
+sequenceDiagram
+    Client->>TEE: create_artifact(stdin)
+    activate TEE
+        TEE-->>Client: presigned url
+    deactivate TEE
+
+    Client->>TEE: request_proof()
+    activate TEE
+        TEE->>Network: request_proof()
+        activate Network
+        Network-->>TEE: request_id
+        TEE-->>TEE: insert_request()
+    TEE-->>Client: request id
+    deactivate TEE
+
+    par
+        Note over TEE: Proof processing
+
+        TEE-->>TEE: execute()
+        TEE-->>TEE: generate_proof()
+        TEE->>Network: fulfill_proof()
+        activate Network
+        Network-->>TEE: ok
+        deactivate Network
+    and
+        Note over Client: Wait proof
+
+        Client->>TEE: get_proof_request_status()
+        activate TEE
+        TEE->>Network: get_proof_request_status()
+        activate Network
+        Network-->>TEE: fulfilled
+        deactivate Network
+        TEE-->>Client: fulfilled
+        deactivate TEE
+    end
+```
+
+1. The client app create a proof request using the SP1 SDK.
+   * The proof request is sent to the TEE, and is proxied to the Network
+   * A presigned URL is sent to the client to store the program in S3
+   * Another presigned URL is sent to the client to store the proof inputs in the TEE
+2. The proof is generated inside the TEE
+   * The program is downloaded from S3
+   * The proof inputs are already in the TEE
+   * The program is first executed, and then the proof is generated
+   * When the proof is generated, The TEE update the proof request status on the Network
+   * The proof is sent to the Network that store it to S3
+3. Meanwhile, the client app sends requests to the TEE, querying the proof request status
+   * The status requests are proxied to the Network
+   * When the proof request is fulfilled, it's downloaded from S3 and provided to the user
+
+
+We can see from the workflow above that the proof inputs are directly sent to the TEE, keeping them private. Also, the proof is generated inside the TEE.
+
 ### TLS Certificates Verification
 
 In order to ensure the communications to the TEE enclaves are secure, the tee.sp1-lumiere.xyz domain certificates must be managed by the TEE application itself. This is achieved by the Phala [Zero Trust TLS] protocol.

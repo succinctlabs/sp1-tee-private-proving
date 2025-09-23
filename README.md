@@ -88,7 +88,72 @@ We can see from the workflow above that the proof inputs are directly sent to th
 
 In order to ensure the communications to the TEE enclaves are secure, the tee.sp1-lumiere.xyz domain certificates must be managed by the TEE application itself. This is achieved by the Phala [Zero Trust TLS] protocol.
 
-Phala provides mechanisms for anyone to verify and attest that the domain is managed by the TEE application. The process is descibed in the [Domain Attestation] section in the Phala Cloud documentation, and [dstack-verifier], a tool to automate certificate verification is provided.
+Anyone can easily verify that only the TEE controls the certificate, by following these steps:
+
+### Step 1: Get the Evidence Files
+
+```
+# Download the evidence files (4 files total)
+curl -sO https://tee.sp1-lumiere.xyz/evidences/quote.json
+curl -sO https://tee.sp1-lumiere.xyz/evidences/sha256sum.txt
+curl -sO https://tee.sp1-lumiere.xyz/evidences/cert.pem
+curl -sO https://tee.sp1-lumiere.xyz/evidences/acme-account.json
+
+# Verify the files haven't been tampered with
+sha256sum -c sha256sum.txt
+```
+
+Expected output:
+
+```
+acme-account.json: OK
+cert.pem: OK
+```
+
+This means the files are authentic.
+
+### Step 2: Verify the Certificate Matches
+
+Check that the evidence matches what’s actually being served:
+
+```
+# Compare the served certificate with the evidence certificate
+echo | openssl s_client -connect tee.sp1-lumiere.xyz:443 2>/dev/null | \
+  openssl x509 -fingerprint -sha256 -noout
+openssl x509 -in cert.pem -fingerprint -sha256 -noout
+```
+
+Both fingerprints should be identical.
+
+Now verify the TEE hardware signed these files:
+
+```
+# Step 1: Get the hash of sha256sum.txt
+sha256sum sha256sum.txt
+# Output: 3613a4229d6ac5a0f41829863abfffd09e5aed3d5db2816b294a8244ad34c096  sha256sum.txt
+
+# Step 2: Search for this complete hash in the TDX quote
+cat quote.json | jq -r '.quote' | grep -o "3613a4229d6ac5a0f41829863abfffd09e5aed3d5db2816b294a8244ad34c096"
+# Output: 3613a4229d6ac5a0f41829863abfffd09e5aed3d5db2816b294a8244ad34c096
+```
+
+What this means: If you see the same 64-character hash in both outputs, Intel TDX hardware has cryptographically signed your evidence files. Copy the hash from step 1 and search for it in step 2 - they must match exactly.
+
+### Step 3: Check Domain Protection
+
+Make sure only this TEE can get certificates for your domain:
+
+```
+# Get the TEE's ACME account number
+cat acme-account.json | jq -r '.uri'
+
+# Check if the domain is locked to this account
+dig +short CAA tee.sp1-lumiere.xyz
+```
+
+The ACME account should match in the 2 commands above.
+
+When all verifications pass, you’ve proven that only this specific TEE instance has the private key for the TLS certificate, and that the CAA DNS records prevent anyone else (even with domain access) from issuing certificates.
 
 ### Application Integrity Verification
 

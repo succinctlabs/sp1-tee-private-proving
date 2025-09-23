@@ -90,7 +90,7 @@ In order to ensure the communications to the TEE enclaves are secure, the tee.sp
 
 Anyone can easily verify that only the TEE controls the certificate, by following these steps:
 
-### Step 1: Get the Evidence Files
+#### Step 1: Get the Evidence Files
 
 ```
 # Download the evidence files (4 files total)
@@ -112,7 +112,7 @@ cert.pem: OK
 
 This means the files are authentic.
 
-### Step 2: Verify the Certificate Matches
+#### Step 2: Verify the Certificate Matches
 
 Check that the evidence matches what’s actually being served:
 
@@ -128,18 +128,18 @@ Both fingerprints should be identical.
 Now verify the TEE hardware signed these files:
 
 ```
-# Step 1: Get the hash of sha256sum.txt
+# 1. Get the hash of sha256sum.txt
 sha256sum sha256sum.txt
 # Output: 3613a4229d6ac5a0f41829863abfffd09e5aed3d5db2816b294a8244ad34c096  sha256sum.txt
 
-# Step 2: Search for this complete hash in the TDX quote
+# 2. Search for this complete hash in the TDX quote
 cat quote.json | jq -r '.quote' | grep -o "3613a4229d6ac5a0f41829863abfffd09e5aed3d5db2816b294a8244ad34c096"
 # Output: 3613a4229d6ac5a0f41829863abfffd09e5aed3d5db2816b294a8244ad34c096
 ```
 
-What this means: If you see the same 64-character hash in both outputs, Intel TDX hardware has cryptographically signed your evidence files. Copy the hash from step 1 and search for it in step 2 - they must match exactly.
+What this means: If you see the same 64-character hash in both outputs, Intel TDX hardware has cryptographically signed your evidence files. Copy the hash from 1. and search for it in 2. - they must match exactly.
 
-### Step 3: Check Domain Protection
+#### Step 3: Check Domain Protection
 
 Make sure only this TEE can get certificates for your domain:
 

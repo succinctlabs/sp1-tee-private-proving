@@ -55,6 +55,6 @@ tonic-build = "0.12.0"
 # sp1-prover = { path = "../sp1/crates/prover" }
 # sp1-core-executor = { path = "../sp1/crates/core/executor" }
 
-sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git", branch = "aurelien/gro2-723-add-new-apis-for-private-proving-to-sp1" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "aurelien/gro2-723-add-new-apis-for-private-proving-to-sp1" }
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "aurelien/gro2-723-add-new-apis-for-private-proving-to-sp1" }
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git", rev = "28ee277e048e49ebdc608f63a1f6b77240e0668f" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", rev = "28ee277e048e49ebdc608f63a1f6b77240e0668f" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", rev = "28ee277e048e49ebdc608f63a1f6b77240e0668f" }

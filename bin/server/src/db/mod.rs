@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use sp1_sdk::network::proto::types::ProofRequest;
+use sp1_sdk::network::proto::base_types::ProofRequest;
 use tonic::async_trait;
 
 mod in_memory;

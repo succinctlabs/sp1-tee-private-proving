@@ -8,7 +8,7 @@ use sp1_sdk::{
     SP1ProvingKey, SP1Stdin,
     network::{
         B256,
-        proto::types::{
+        proto::base_types::{
             ExecutionStatus, FailFulfillmentRequest, FailFulfillmentRequestBody,
             FulfillProofRequest, FulfillProofRequestBody, GetNonceRequest, GetProgramRequest,
             MessageFormat, ProofMode, ProofRequest,

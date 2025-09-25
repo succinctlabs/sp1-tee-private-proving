@@ -5,7 +5,7 @@ use std::{
 };
 
 use lru::LruCache;
-use sp1_sdk::network::proto::types::ProofRequest;
+use sp1_sdk::network::proto::base_types::ProofRequest;
 use tokio::sync::Mutex;
 use tonic::async_trait;
 

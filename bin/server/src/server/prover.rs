@@ -4,7 +4,7 @@ use alloy_primitives::{Address, B256};
 use anyhow::Result;
 use sp1_sdk::{
     NetworkSigner,
-    network::proto::types::{
+    network::proto::base_types::{
         CreateProgramRequest, CreateProgramResponse, GetNonceRequest, GetNonceResponse,
         GetProgramRequest, GetProgramResponse, GetProofRequestDetailsRequest,
         GetProofRequestStatusRequest, GetProofRequestStatusResponse, ProofRequest,

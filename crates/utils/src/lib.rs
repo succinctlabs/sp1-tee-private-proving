@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use sp1_sdk::network::proto::network::prover_network_client::ProverNetworkClient;
+use sp1_sdk::network::proto::base_network::prover_network_client::ProverNetworkClient;
 use sp1_tee_private_types::prover_network_client::ProverNetworkClient as PrivateNetworkClient;
 use tonic::transport::{Channel, ClientTlsConfig, Endpoint, Error};
 

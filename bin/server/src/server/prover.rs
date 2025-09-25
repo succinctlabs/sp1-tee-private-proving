@@ -128,10 +128,14 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
                     tracing::debug!(?request_id, "Insert proof request");
                     self.db.insert_request(proof_request).await;
                 } else {
-                    tracing::debug!(
+                    tracing::error!(
                         ?request_id,
                         "Proof request associated with another fulfiller"
                     );
+
+                    return Err(Status::permission_denied(
+                        "The proof request is not associated with a fulfiller with private proving enabled",
+                    ));
                 }
             }
             None => {

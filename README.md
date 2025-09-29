@@ -178,19 +178,28 @@ To verify that the code running inside the TEE application at tee.sp1-lumiere.xy
    just show-digests
    ```
 
-4. Verify the digests correspond to the ones used in the `docker-compose.yml` file at the root path of this repo
-
-5. Retrieve the known [RTMR3] of the TEE application from the Phala Cloud API:
+4. Retrieve the quote and app info:
    ```bash
-   just get-attestation
+   just get-and-verify-quote
+   ```
+   Copy the App Id and the Compose hash
+
+5. Retrieve `docker-compose.yml` file that was used to create the instance:
+   ```bash
+   # Use the App ID from step 4
+   just retrieve-docker-compose <app_id>
    ```
 
-6. Compute the RTMR3 using the [RTMR3 Calculator], using the following values: 
-   * The `docker-compose.yml` file is the one you verified at step 4
-   * The appId is `9b78cf840e16a8274e00474cdac4afdabc5eeb93`
-   * The InstanceId is `f15edb2cc265a06a7cb524d0022bb13277eb177c`
+6. Verify the `server` and `fulfiller` images digests running in production (from the `docker-compose.yml` file on step 5) are identical to the ones you built (on step 3)
 
-If both `RTMR3`s at step 5 and 6 are identical, you’ve proven that the `docker-compose.yml` file used to create the TEE Application is the same as the one in this rep, and contains the exact Docker images you built.
+
+7. Verifiy the Compose hash (from the `docker-compose.yml` file on step 5) match the one from the quote on step 4:
+   ```bash
+   # Use the App ID from step 4
+   just verify-compose-hash <app_id>
+   ```
+
+The the both Compose hashes matches, and the `server` and `fulfiller` images digests used to created the instance match the ones to built, you proved the application code running in production is the expected one. 
 
 
 [`private()`]: https://docs.rs/sp1-sdk/latest/sp1_sdk/network/builder/struct.NetworkProverBuilder.html#method.private

@@ -173,33 +173,38 @@ To verify that the code running inside the TEE application at tee.sp1-lumiere.xy
    just build-docker-images
    ```
 
-3. Display the Docker `server` and `fulfiller` images digests:
+3. Pull the published images from Amazon secure
+   ```bash
+   just pull-docker-images
+   ```
+
+4. Display the Docker `server` and `fulfiller` images digests:
    ```bash
    just show-digests
    ```
+   You should have 2 lines: one for the `server` and another one for the `fulfiller`, each with 2 tags: The one you built, and the one from ECR, meaning the images you built and the one we published are the same. Also, the repo digests are displayed.
 
-4. Retrieve the quote and app info:
+5. Retrieve the quote and app info:
    ```bash
    just get-and-verify-quote
    ```
    Copy the App Id and the Compose hash
 
-5. Retrieve `docker-compose.yml` file that was used to create the instance:
+6. Retrieve `docker-compose.yml` file that was used to create the instance:
    ```bash
    # Use the App ID from step 4
    just retrieve-docker-compose <app_id>
    ```
 
-6. Verify the `server` and `fulfiller` images digests running in production (from the `docker-compose.yml` file on step 5) are identical to the ones you built (on step 3)
+7. Verify the `server` and `fulfiller` images digests running in production (from the `docker-compose.yml` file on step 5) are identical to the ones you built (on step 4)
 
-
-7. Verifiy the Compose hash (from the `docker-compose.yml` file on step 5) match the one from the quote on step 4:
+8. Verifiy the Compose hash (from the `docker-compose.yml` file on step 6) match the one from the quote on step 5:
    ```bash
    # Use the App ID from step 4
    just verify-compose-hash <app_id>
    ```
 
-The the both Compose hashes matches, and the `server` and `fulfiller` images digests used to created the instance match the ones to built, you proved the application code running in production is the expected one. 
+If both compose hashes matches, and the `server` and `fulfiller` images digests used to created the instance match the ones you built, you proved the application code running in production is the expected one.
 
 
 [`private()`]: https://docs.rs/sp1-sdk/latest/sp1_sdk/network/builder/struct.NetworkProverBuilder.html#method.private

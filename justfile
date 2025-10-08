@@ -8,8 +8,12 @@ publish-docker-images:
     docker push public.ecr.aws/succinct-labs/sp1-tee-private-proving:server
     docker push public.ecr.aws/succinct-labs/sp1-tee-private-proving:fulfiller
 
+pull-docker-images:
+    docker pull public.ecr.aws/succinct-labs/sp1-tee-private-proving:server
+    docker pull public.ecr.aws/succinct-labs/sp1-tee-private-proving:fulfiller
+
 show-digests:
-    docker inspect sp1-tee-private-proving:server sp1-tee-private-proving:fulfiller --format "{{{{.RepoTags}}: {{{{.Id}}"
+    docker inspect sp1-tee-private-proving:server sp1-tee-private-proving:fulfiller --format "{{{{.RepoTags}}: {{{{.RepoDigests}}"
 
 get-attestation:
     cargo r --bin sp1-tee-app-integrity-verifier

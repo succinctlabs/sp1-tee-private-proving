@@ -17,7 +17,7 @@ services:
       - cert-data:/etc/letsencrypt
     restart: unless-stopped
   server:
-    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving@sha256:f5489defa45a9ce8719771969eac919e31720fc4cba360a2cfd4d1956295b695
+    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:server@sha256:ef0abed7b7d1b54917dd15f2d75a900ecfd8cb6535387b51574d399d1331c4e5
     environment:
       - HOSTNAME=https://tee.sp1-lumiere.xyz
       - NETWORK_RPC_URL=https://rpc.production.succinct.xyz
@@ -28,7 +28,7 @@ services:
       - "8081:8081"
     restart: unless-stopped
   fulfiller:
-    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving@sha256:d2a7f610fb23f89eee473d16b4c7b2e274a90e623e6d0746ce180609faf11dde
+    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:fulfiller@sha256:057d457093cc69e2e56c7dd56bd3850fe6e7324de0e57271bd7cf7ffe973447a
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
@@ -45,11 +45,11 @@ services:
     runtime: nvidia
     deploy:
       resources:
-          reservations:
-            devices:
-              - driver: nvidia
-                capabilities: [gpu]
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
     restart: unless-stopped
 
 volumes:
-  cert-data:  # Persistent volume for certificates
+  cert-data: # Persistent volume for certificates

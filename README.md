@@ -162,18 +162,18 @@ Phala also provides mechanisms for anyone to verify that an application is runni
 To verify that the code running inside the TEE application at tee.sp1-lumiere.xyz correspond to the code published in this repo, follow these steps:
 
 
-1. Clone the repository
+1. Clone the repository:
    ```bash
    git clone https://github.com/succinctlabs/sp1-tee-private-proving.git
    cd sp1-tee-private-proving
    ```
 
-2. Build the Docker images for the server and the fulfiller
+2. Build the Docker images for the `server` and the `fulfiller`:
    ```bash
    just build-docker-images
    ```
 
-3. Pull the published images from Amazon secure
+3. Pull the published images from Amazon ECR:
    ```bash
    just pull-docker-images
    ```

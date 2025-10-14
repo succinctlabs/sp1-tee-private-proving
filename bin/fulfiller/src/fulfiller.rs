@@ -17,7 +17,10 @@ use sp1_sdk::{
 };
 use sp1_tee_private_utils::{Signable, private_network_client, prover_network_client};
 use spn_artifacts::{Artifact, extract_artifact_name};
-use tokio::{sync::Mutex, time::sleep};
+use tokio::{
+    sync::Mutex,
+    time::{Instant, sleep},
+};
 use tonic::Code;
 
 const REFRESH_INTERVAL_SEC: u64 = 3;
@@ -242,7 +245,9 @@ impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
         };
 
         tracing::debug!(?request_id, "Start proving");
+        let prove_start = Instant::now();
         let proof = self.prover.prove(&pk, &stdin, proof_mode);
+        let prove_duration = prove_start.elapsed();
 
         let nonce = network_client
             .get_nonce(GetNonceRequest {
@@ -253,7 +258,11 @@ impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
 
         match proof {
             Ok(proof) => {
-                tracing::debug!(?request_id, "Proof generated");
+                tracing::info!(
+                    ?request_id,
+                    "Proof generated in {}s",
+                    prove_duration.as_secs_f64()
+                );
                 let encoded_proof = bincode::serialize(&proof)?;
 
                 let body = FulfillProofRequestBody {

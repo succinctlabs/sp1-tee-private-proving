@@ -1,12 +1,13 @@
 services:
   ingress:
-    image: dstacktee/dstack-ingress:20250924@sha256:40429d78060ef3066b5f93676bf3ba7c2e9ac47d4648440febfdda558aed4b32
+    image: kvin/dstack-ingress@sha256:fee7a6075a271adb5a5ff72ff3ff49bcb9e22d5f4c9fa68fa683cfb3932f911c
     ports:
       - "443:443"
     environment:
       - DNS_PROVIDER=cloudflare
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
       - DOMAIN=tee.sp1-lumiere.xyz
+      - CLIENT_MAX_BODY_SIZE=2g
       - GATEWAY_DOMAIN=_.succinct.phala.network
       - CERTBOT_EMAIL=aurelien@succinct.xyz
       - SET_CAA=true
@@ -17,7 +18,7 @@ services:
       - cert-data:/etc/letsencrypt
     restart: unless-stopped
   server:
-    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:server@sha256:ef0abed7b7d1b54917dd15f2d75a900ecfd8cb6535387b51574d399d1331c4e5
+    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:server@sha256:6fb5c607a3366e1d0f04864976b76c61ae1d8f95e709c39ee29748f3fd9ba7cf
     environment:
       - HOSTNAME=https://tee.sp1-lumiere.xyz
       - NETWORK_RPC_URL=https://rpc.production.succinct.xyz
@@ -28,7 +29,7 @@ services:
       - "8081:8081"
     restart: unless-stopped
   fulfiller:
-    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:fulfiller@sha256:057d457093cc69e2e56c7dd56bd3850fe6e7324de0e57271bd7cf7ffe973447a
+    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:fulfiller@sha256:414cf591fa9ad9fbf8275514cb68bd3cd87224d3873eb30b831bd297749871c1
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}

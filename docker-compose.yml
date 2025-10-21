@@ -18,7 +18,7 @@ services:
       - cert-data:/etc/letsencrypt
     restart: unless-stopped
   server:
-    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:server@sha256:6fb5c607a3366e1d0f04864976b76c61ae1d8f95e709c39ee29748f3fd9ba7cf
+    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:server@sha256:a3f105026e0da7bef869e48f836923e50ff86f3fb809df49dafabca50c4e3a3b
     environment:
       - HOSTNAME=https://tee.sp1-lumiere.xyz
       - NETWORK_RPC_URL=https://rpc.production.succinct.xyz
@@ -29,7 +29,7 @@ services:
       - "8081:8081"
     restart: unless-stopped
   fulfiller:
-    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:fulfiller@sha256:414cf591fa9ad9fbf8275514cb68bd3cd87224d3873eb30b831bd297749871c1
+    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:fulfiller@sha256:bf7652afbeaa8ea331d5c6e26358d5b6936344fb9cdd833b4da604643f28216a
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}

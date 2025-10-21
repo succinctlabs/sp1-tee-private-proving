@@ -45,7 +45,7 @@ impl<DB: Db> ArtifactStore for DefaultArtifactStoreServer<DB> {
 
         match artifact_type {
             ArtifactType::Program => {
-                let mut artifact_store = self.artifact_store_client().await?;
+                let mut artifact_store = self.artifact_store_client().await.unwrap();
 
                 artifact_store.create_artifact(request).await
             }

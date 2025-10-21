@@ -1,6 +1,6 @@
 build-docker-images:
-    docker build -t sp1-tee-private-proving:server --target server .
-    docker build -t sp1-tee-private-proving:fulfiller --target fulfiller .
+    docker build --platform linux/amd64 -t sp1-tee-private-proving:server --target server .
+    docker build --platform linux/amd64 -t sp1-tee-private-proving:fulfiller --target fulfiller .
 
 publish-docker-images:
     docker build -t public.ecr.aws/succinct-labs/sp1-tee-private-proving:server --target server .

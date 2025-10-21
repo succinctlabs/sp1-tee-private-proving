@@ -55,7 +55,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         request: Request<CreateProgramRequest>,
     ) -> Result<Response<CreateProgramResponse>, Status> {
         let request = request.into_inner();
-        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
+        let mut network_client = prover_network_client(&self.network_rpc_url).await?;
         let response_from_network = network_client.create_program(request).await?;
 
         Ok(response_from_network)
@@ -67,7 +67,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         request: Request<GetProgramRequest>,
     ) -> Result<Response<GetProgramResponse>, Status> {
         let request = request.into_inner();
-        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
+        let mut network_client = prover_network_client(&self.network_rpc_url).await?;
 
         network_client.get_program(request).await
     }
@@ -77,7 +77,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         &self,
         request: Request<GetNonceRequest>,
     ) -> Result<Response<GetNonceResponse>, Status> {
-        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
+        let mut network_client = prover_network_client(&self.network_rpc_url).await?;
 
         network_client.get_nonce(request).await
     }
@@ -92,7 +92,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
     ) -> Result<Response<RequestProofResponse>, Status> {
         tracing::debug!("Start request proof");
         let request = request.into_inner();
-        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
+        let mut network_client = prover_network_client(&self.network_rpc_url).await?;
 
         tracing::debug!("Forwarding proof request to the network");
         let response_from_network = network_client.request_proof(request).await?.into_inner();
@@ -171,7 +171,7 @@ impl<DB: Db> ProverNetwork for DefaultPrivateProverServer<DB> {
         &self,
         request: Request<GetProofRequestStatusRequest>,
     ) -> Result<Response<GetProofRequestStatusResponse>, Status> {
-        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
+        let mut network_client = prover_network_client(&self.network_rpc_url).await?;
 
         network_client.get_proof_request_status(request).await
     }

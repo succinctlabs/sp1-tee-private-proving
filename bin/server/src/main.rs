@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use sp1_sdk::network::proto::artifact::artifact_store_server::ArtifactStoreServer;
 use sp1_tee_private_types::prover_network_server::ProverNetworkServer;
 use tonic::service::Routes;
+use tower_http::cors::CorsLayer;
 use tracing::info;
 
 use crate::{
@@ -62,7 +63,8 @@ async fn main() {
         .route("/artifacts/stdin/:id", put(upload_artifact))
         .route("/health", get(health))
         .with_state(db.clone())
-        .merge(grpc_routes);
+        .merge(grpc_routes)
+        .layer(CorsLayer::permissive());
 
     let download_artifacts = Router::new()
         .route("/artifacts/stdin/:id", get(download_artifact))

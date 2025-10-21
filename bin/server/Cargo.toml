@@ -34,6 +34,7 @@ sp1-core-executor.workspace = true
 
 async-stream = "0.3.6"
 dstack-sdk = { git = "https://github.com/Dstack-TEE/dstack.git" }
+tower-http = { version = "0.6.6", default-features = false, features = ["cors"] }
 
 [features]
 local = []

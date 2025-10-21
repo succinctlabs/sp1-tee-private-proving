@@ -156,7 +156,7 @@ impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
             .max_cycles(self.proof_request.cycle_limit)
             .calculate_gas(true)
             .build();
-        let mut network_client = prover_network_client(&self.network_rpc_url).await.unwrap();
+        let mut network_client = prover_network_client(&self.network_rpc_url).await?;
 
         let pk = {
             self.proving_keys
@@ -182,7 +182,7 @@ impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
                     .program
                     .ok_or(anyhow!("Program not registered"))?;
                 let artifact = Artifact {
-                    id: extract_artifact_name(&program.program_uri).unwrap(),
+                    id: extract_artifact_name(&program.program_uri)?,
                     label: String::from(""),
                     expiry: None,
                 };
@@ -192,8 +192,7 @@ impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
                         &program.program_uri,
                         &self.programs_s3_region,
                     )
-                    .await
-                    .unwrap();
+                    .await?;
 
                 let (pk, _) = self.prover.setup(&elf);
                 let pk = Arc::new(pk);

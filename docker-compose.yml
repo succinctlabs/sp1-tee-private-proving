@@ -18,7 +18,7 @@ services:
       - cert-data:/etc/letsencrypt
     restart: unless-stopped
   server:
-    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:server@sha256:a3f105026e0da7bef869e48f836923e50ff86f3fb809df49dafabca50c4e3a3b
+    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:server@sha256:1f3a0d518c18629a096299a16c08d7502ac14e2f53a208221aa53d70ade09ffb
     environment:
       - HOSTNAME=https://tee.sp1-lumiere.xyz
       - NETWORK_RPC_URL=https://rpc.production.succinct.xyz
@@ -29,7 +29,7 @@ services:
       - "8081:8081"
     restart: unless-stopped
   fulfiller:
-    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:fulfiller@sha256:bf7652afbeaa8ea331d5c6e26358d5b6936344fb9cdd833b4da604643f28216a
+    image: public.ecr.aws/succinct-labs/sp1-tee-private-proving:fulfiller@sha256:02c706661f3998247c9c24357492388f328882d3a2b6cb967afab1ad2b792356
     environment:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
@@ -42,7 +42,7 @@ services:
       - moongate
     restart: unless-stopped
   moongate:
-    image: public.ecr.aws/succinct-labs/moongate:v5.0.7-rc.1
+    image: public.ecr.aws/succinct-labs/sp1-gpu:86a2bbf
     runtime: nvidia
     deploy:
       resources:

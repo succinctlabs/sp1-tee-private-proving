@@ -11,6 +11,7 @@ edition = "2024"
 # Shared dependencies
 anyhow = "1.0.98"
 axum = "0.7.9"
+backoff = { version = "0.4", features = ["tokio"] }
 bincode = "1.3.3"
 crossbeam = "0.8.4"
 dotenv = "0.15.0"
@@ -32,9 +33,9 @@ sp1-tee-private-types = { path = "./crates/types" }
 sp1-tee-private-utils = { path = "./crates/utils" }
 
 # SP1
-sp1-sdk = { version = "5.2.2", features = ["network", "native-gnark"] }
-sp1-prover = { version = "5.2.2" }
-sp1-core-executor = { version = "5.2.2" }
+sp1-sdk = { version = "5.2.4", features = ["network", "native-gnark"] }
+sp1-prover = { version = "5.2.4" }
+sp1-core-executor = { version = "5.2.4" }
 spn-artifacts = { git = "https://github.com/succinctlabs/network" }
 spn-utils = { git = "https://github.com/succinctlabs/network" }
 

@@ -7,6 +7,9 @@ use tonic::transport::{Channel, ClientTlsConfig, Endpoint, Error};
 mod artifacts;
 pub use artifacts::{generate_id, presigned_url};
 
+mod retry;
+pub use retry::retry_operation;
+
 mod signable;
 pub use signable::Signable;
 

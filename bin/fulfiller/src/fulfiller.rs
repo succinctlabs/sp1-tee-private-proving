@@ -15,7 +15,9 @@ use sp1_sdk::{
         },
     },
 };
-use sp1_tee_private_utils::{Signable, private_network_client, prover_network_client};
+use sp1_tee_private_utils::{
+    Signable, private_network_client, prover_network_client, retry_operation,
+};
 use spn_artifacts::{Artifact, extract_artifact_name};
 use tokio::{
     sync::Mutex,
@@ -62,7 +64,7 @@ pub async fn run(
                         );
 
                         #[cfg(feature = "cpu")]
-                        let fulfiller = Fulfiller::mock(
+                        let fulfiller = Fulfiller::cpu(
                             proof_request,
                             proving_keys.clone(),
                             fulfiller_signer.clone(),
@@ -159,7 +161,6 @@ impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
             .max_cycles(self.proof_request.cycle_limit)
             .calculate_gas(true)
             .build();
-        let mut network_client = prover_network_client(&self.network_rpc_url).await?;
 
         let pk = {
             self.proving_keys
@@ -176,14 +177,24 @@ impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
                 // call setup(), and insert the pk to the cacghe.
                 tracing::debug!(?request_id, "Setup");
 
-                let program = network_client
-                    .get_program(GetProgramRequest {
-                        vk_hash: self.proof_request.vk_hash.to_vec(),
-                    })
-                    .await?
-                    .into_inner()
-                    .program
-                    .ok_or(anyhow!("Program not registered"))?;
+                let program = retry_operation(
+                    || async {
+                        let mut network_client =
+                            prover_network_client(&self.network_rpc_url).await?;
+                        let program = network_client
+                            .get_program(GetProgramRequest {
+                                vk_hash: self.proof_request.vk_hash.to_vec(),
+                            })
+                            .await?;
+                        Ok(program)
+                    },
+                    "get nonce",
+                )
+                .await?
+                .into_inner()
+                .program
+                .ok_or(anyhow!("Program not registered"))?;
+
                 let artifact = Artifact {
                     id: extract_artifact_name(&program.program_uri)?,
                     label: String::from(""),
@@ -248,12 +259,21 @@ impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
         let proof = self.prover.prove(&pk, &stdin, proof_mode);
         let prove_duration = prove_start.elapsed();
 
-        let nonce = network_client
-            .get_nonce(GetNonceRequest {
-                address: self.fulfiller_signer.address().to_vec(),
-            })
-            .await?
-            .into_inner();
+        let nonce = retry_operation(
+            || async {
+                let mut network_client = prover_network_client(&self.network_rpc_url).await?;
+                let nonce = network_client
+                    .get_nonce(GetNonceRequest {
+                        address: self.fulfiller_signer.address().to_vec(),
+                    })
+                    .await?;
+
+                Ok(nonce)
+            },
+            "get nonce",
+        )
+        .await?
+        .into_inner();
 
         match proof {
             Ok(proof) => {
@@ -272,14 +292,24 @@ impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
                 };
 
                 // fulfill the proof on the prover network
-                network_client
-                    .fulfill_proof(FulfillProofRequest {
-                        format: MessageFormat::Binary.into(),
-                        signature: body.sign(&self.fulfiller_signer).await?,
-                        body: Some(body),
-                    })
-                    .await
-                    .map_err(|err| anyhow!("Failed to fulfill: {err}"))?;
+                retry_operation(
+                    || async {
+                        let mut network_client =
+                            prover_network_client(&self.network_rpc_url).await?;
+                        network_client
+                            .fulfill_proof(FulfillProofRequest {
+                                format: MessageFormat::Binary.into(),
+                                signature: body.sign(&self.fulfiller_signer).await?,
+                                body: Some(body.clone()),
+                            })
+                            .await
+                            .map_err(|err| anyhow!("Failed to fulfill: {err}"))?;
+
+                        Ok(())
+                    },
+                    "fulfill proof",
+                )
+                .await?;
 
                 tracing::debug!(?request_id, "Proof fullfilled");
             }
@@ -293,13 +323,22 @@ impl<P: Prover<CpuProverComponents>> Fulfiller<P> {
                 };
 
                 // Set the proof as unfulfillable on the prover network
-                network_client
-                    .fail_fulfillment(FailFulfillmentRequest {
-                        format: MessageFormat::Binary.into(),
-                        signature: body.sign(&self.fulfiller_signer).await?,
-                        body: Some(body),
-                    })
-                    .await?;
+                retry_operation(
+                    || async {
+                        let mut network_client =
+                            prover_network_client(&self.network_rpc_url).await?;
+                        network_client
+                            .fail_fulfillment(FailFulfillmentRequest {
+                                format: MessageFormat::Binary.into(),
+                                signature: body.sign(&self.fulfiller_signer).await?,
+                                body: Some(body.clone()),
+                            })
+                            .await?;
+                        Ok(())
+                    },
+                    "fail fulfillment",
+                )
+                .await?;
 
                 tracing::debug!(?request_id, "Proof marked as unfulfillable");
             }

@@ -9,6 +9,8 @@ sp1-tee-private-types.workspace = true
 sp1-sdk.workspace = true
 
 anyhow.workspace = true
+backoff.workspace = true
 mti.workspace = true
 prost.workspace = true
 tonic.workspace = true
+tracing.workspace = true
